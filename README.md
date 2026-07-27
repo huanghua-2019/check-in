@@ -1,170 +1,246 @@
-# 通用打卡 · 网页 App（写作 / 早睡 / 方法）
+# 通用打卡网页 App —— 从 0 到 1 完整搭建记录
 
-> 一个手机优先的纯静态网页，把三类「用一次 / 做一次就打一次卡」的行为统一管理：
-> **✍️ 写作**（高频词汇库打卡）、**🌙 早睡**（记录入睡时间、23:00 前达标）、**💡 方法**（巴菲特阅读手段 + 徐新研究手段，自定义字段）。
-> 手机 / 电脑打开同一个链接即可使用，打卡数据存云端、多设备自动同步。
-
-**公网地址（GitHub Pages）**
-https://huanghua-2019.github.io/check-in/
+> 这是一份**按时间顺序**的搭建手册：假设今天你从零开始，跟着做就能复现当前这个「写作 / 早睡 / 方法」三合一打卡网页。
+> 每一步都写清楚**做了什么、为什么这样做**。当前成品：https://huanghua-2019.github.io/check-in/
+>
+> 适用人群：想自己搭一个同类打卡网页的人，或以后要维护 / 扩展本项目的人。
 
 ---
 
-## 一、这个项目做了什么
+## 现在做成什么样（先给结果）
 
-### 1. 写作打卡（原「高频词汇打卡」）
-把《002-高频词汇库》等素材做成可打卡的卡片：用一次点一下 `+1`，自动记次数、首次/最近使用时间、掌握度（未用 → 偶尔 → 熟练）。支持按分类 / 掌握度 / 状态筛选，按词、同义词、释义搜索，展开看同义词与例句。共 **1232 条**词条，分 7 个子标签（词汇 / 句式 / 金句 / 比喻 / 规则 / 案例 / 幽默）。
+| 模块 | 内容 |
+|------|------|
+| ✍️ 写作 | 1232 条词汇素材，7 个子标签（词汇/句式/金句/比喻/规则/案例/幽默），点击 `+1` 打卡，记次数+掌握度 |
+| 🌙 早睡 | 记入睡时间，目标 23:00，达标统计 |
+| 💡 方法 | 巴菲特阅读手段 + 徐新研究手段，自定义字段打卡 |
 
-### 2. 早睡打卡
-记录每天的入睡时间，目标 **23:00**，早于目标算达标，页面给出连续达标天数与历史记录。这是一个「计时型」习惯，结构与其他两类打卡完全一致。
-
-### 3. 方法打卡
-两套可自定义的「手段」打卡，字段由数据定义，不在前端写死：
-- **巴菲特阅读手段**：用了哪个阅读法（每天 500 页 / 读年报 / 思维模型 / 主题阅读）、读了什么、页数、心得。
-- **徐新研究手段**：用了哪个研究手段（消费者访谈 / 看赛道 / 长期持有研究 / 专家访谈）、访谈或研究对象、关键结论。
-
-### 4. 数据层
-所有打卡记录存进同一个 Supabase 项目（共 4 张表），手机和电脑打开同一链接自动同步；若 Supabase 不可达，自动回退本机浏览器存储，不崩。
+- 纯静态网页（无框架、无后端），手机优先、护眼配色。
+- 数据存 Supabase（一个项目 4 张表），多设备自动同步；Supabase 不可达时自动回退本机存储。
+- 部署在 GitHub Pages，push 即生效。
 
 ---
 
-## 二、为什么这样设计（每一步背后的原因）
+# 阶段一：先做出「写作打卡」能用的版本
 
-下面逐条说明关键决策及其理由，方便以后维护时判断「能不能改、改了会怎样」。
+## 步骤 1：确定技术选型（纯静态 + 护眼 + 左侧栏）
 
-### 决策 1：纯静态网页（HTML/CSS/JS），无框架、无构建步骤
-- **原因**：手机优先、部署简单。任何静态托管（GitHub Pages）上传目录即可，不需要 Node 构建、不需要后端服务器。维护成本低，迁仓库零成本（后来从 CloudStudio 迁到 GitHub Pages 只改了一个链接）。
-- **代价**：逻辑全在前端，复杂交互要手写；对个人单用户场景完全够用。
+**做什么**：决定用「纯 HTML/CSS/JS 三个文件 + 一份数据文件」做，不引入 React/Vue 等框架，不写后端。配色定为米色 `#f5f0e6` + 金棕 `#b8861b`，导航放左侧。
 
-### 决策 2：手机优先 + 护眼配色（米色 `#f5f0e6` + 金棕 `#b8861b` + 近白卡片 `#fffdf8` + 深灰文字 `#1c1d22`）
-- **原因**：用户主要在手机上阅读、且明确不喜欢深色 / 近黑底（「眼睛要瞎了」）。浅色护眼底长期阅读不刺眼，金棕主色与「知识库」气质一致。
+**为什么**：
+- 个人单用户、数据量小（千级词条），框架带来的构建复杂度不划算；纯静态文件任意托管商上传即用，迁移零成本。
+- 用户主要在手机阅读且明确讨厌深色底，浅色护眼底 + 金棕主色长期不刺眼。
+- 用户习惯左侧导航，确认用「左侧 sidebar + 右侧 content」布局。
 
-### 决策 3：左侧垂直侧栏导航（而非顶部横排标签）
-- **原因**：用户习惯左侧导航（原话「标签放到最左边」）。三层结构用「左侧 sidebar + 右侧 content」的 flex 布局，写作模块的 7 个子标签放在左侧栏，外层三大模块放在页面顶部大标签。
+## 步骤 2：把 Obsidian 写作素材变成网页数据
 
-### 决策 4：三层大标签（写作 / 早睡 / 方法）
-- **原因**：用户要的是「各种各样的打卡」通用软件，但又不想覆盖原来已经用起来的写作打卡。做法是保留写作模块原样放在第一个标签，外面再套两个新标签（早睡、方法）。新增一类打卡 = 加一个大标签 + 在 Supabase 加一行习惯定义，互不干扰。
+**做什么**：素材源是 Obsidian 里的 9 个 md 文件（高频词汇库、金句、比喻、句式、案例、幽默等）。写一个 Python 解析体系，把它们统一生成前端数据 `data.js`（`window.VOCAB` + `window.CATEGORIES`）。
 
-### 决策 5：数据双层存储 —— Supabase 云端优先 + localStorage 降级
-- **原因**：要「多端共同维护」，就必须有云端。Supabase 免费、提供 REST API，纯前端用 `anon key` 直连即可，无需自己写后端。
-- **降级**：网络异常或表未建时，自动回退 localStorage，页面照常可用、不白屏。用户也可以完全不配 Supabase，当纯本地 App 用（设置弹层里 URL/key 留空即可）。
+核心文件：
+- `build/sources.json`：词库登记簿（每个源文件路径 + parser 类型 + 是否启用）。新增词库只加一行。
+- `build/sync.py`：统一入口，一条命令解析全部源 → 分配稳定 id → 生成 `data.js` → 版本号 +1。
+- `build/id_registry.json`：id 注册表（`key → id` 永久映射），保证重新解析后同一个词永远拿到同一个 id。
+- `build/parse.py`、`make_phrases.py`、`make_metaphors_quotes.py`、`merge_phrases.py`：各类型的底层解析器，被 `sync.py` 调用。
 
-### 决策 6：单一 Supabase 项目、四张表共存
-- **原因**：用户曾担心「会不会建出好几个项目」。实际上从一开始（daily_counter、checkin）到最后（habits、checkins）全部落在**同一个项目** `buzfmugezbemyfdmbgyt`，只是按业务分了 4 张表。好处是一个项目就能管全部打卡数据，不会有多项目维护负担。
+**为什么**：
+- 素材在 Obsidian 里持续更新，必须让「源文件是唯一真相」，网页数据一键重新生成，不能手改网页。
+- **id 不可变**：云端打卡记录按 id 关联词条，id 一旦分配永远不改，否则老记录会对应到错词。所以专门用 `id_registry.json` 锁死映射，`sync.py` 还会拉取 Supabase 里有记录的 id 强制保留。
 
-| 表名 | 存什么 | 来源 |
-|------|--------|------|
-| `checkin` | 词汇打卡计数（id / count / first_used / last_used / mastery），57 条老数据 | 最早的写作打卡 |
-| `daily_counter` | 每日打卡总次数（day / n），支撑「本周趋势」 | 趋势统计 |
-| `habits` | 习惯定义（sleep / buffett / xu），含自定义字段 | 通用打卡模型 |
-| `checkins` | 早睡 / 方法的打卡明细（habit_id / ts / value jsonb） | 通用打卡模型 |
+> 用户决定：`001-知识图谱总览`、`008-使用指南`、`009-要点总结方法` 三个文件是导航/方法论，**永久不上线**；其余 6 个已上线。
 
-### 决策 7：`create table if not exists` —— 幂等、零覆盖
-- **原因**：建表 SQL 反复执行也安全。跑 `habits_schema.sql` 时**不会碰**已有的 `checkin`（57 条词汇记录）、`daily_counter` 表，只是新增两张表。这也是用户最担心的「覆盖老数据」问题的根本保障——执行前后复检 `checkin` 仍是 57 条即为铁证。
+## 步骤 3：写前端三件套（index.html / styles.css / app.js）
 
-### 决策 8：通用打卡模型 = `habits` + `checkins` 两表 + `fields` jsonb
-- **原因**：早睡、巴菲特、徐新结构各不相同，但本质是「一个习惯 + 多次打卡记录」。用一张 `habits` 定义习惯（名称、图标、类型、目标、自定义字段数组），一张 `checkins` 存每次打卡的答案集合（jsonb）。**加一个新习惯只需在 `habits` 插一行**，前端自动渲染表单，不用改代码。自定义字段（`fields`）让巴菲特 / 徐新这类「带多个属性」的打卡也能通用表达。
+**做什么**：
+- `index.html`：左侧栏（7 个子标签）+ 顶部统计 + 搜索/筛选工具栏 + 卡片列表 + 设置弹层。
+- `styles.css`：手机优先的护眼样式。
+- `app.js`：打卡逻辑、渲染、分类 Tab、Supabase 同步。7 个子标签用分类名的 emoji 前缀判定（💎金句 / 🎨比喻 / 📖规则 / 其他 emoji 句式 / 无 emoji 词汇）。
 
-### 决策 9：`anon` 行级安全策略（RLS `to anon using(true) with check(true)`）
-- **原因**：这是个人单用户、纯前端直连的场景，没有登录系统。`anon key` 本就公开，配合该策略即可让网页免登录读写。表中只存打卡计数与自定义字段，**不含任何敏感信息**，所以放开 anon 读写是可接受的。若以后要多人隔离，再引入登录与按用户隔离的策略即可。
+**为什么（含一个关键坑）**：
+- 分类靠 emoji 前缀识别，但 **JS 正则处理 emoji 必须加 `u` flag**。早期漏写导致 7 个句式分类被误判为词汇（句式 Tab 只剩 2 个）。教训已固化进代码：`/^[💎🎨📖]/u.test(c)`。
 
-### 决策 10：用 GitHub Pages 托管（而非 CloudStudio）
-- **原因**：CloudStudio 沙盒会休眠、免费额度有限，且部署工具一度连续返回 400/500 起不来。GitHub Pages 常驻、免费、国内访问稳定（或经代理），且与代码仓库同源 —— 改动 push 后即生效，维护链路最短。链接固定为 `https://huanghua-2019.github.io/check-in/`。
+## 步骤 4：先接本地存储（localStorage）
 
-### 决策 11：引用加 `?v=N` 版本号（当前 data.js?v=7 / app.js?v=14 / habits.js?v=3）
-- **原因**：浏览器对静态文件有顽固缓存，改了 JS / 数据却不刷新会让人以为「没生效」。给 script 引用加版本号，文件内容变了就递增版本号，强制浏览器重新拉取。这是修过「打开链接无变化」问题后留下的标准做法。
+**做什么**：打卡记录先存浏览器 `localStorage`，双击 `index.html` 就能用，换设备不互通。
 
-### 决策 12：词条 `id` 不可变
-- **原因**：云端打卡记录按 `id` 关联词条。一旦某词拿到 id=731，就永远不能改；否则云端记录会对应到错误的词。新增词条时 id 只能从 `max(id)+1` 递增，**绝不回退重排**。
+**为什么**：第一步先让单机可用、零配置；多端同步是后面才加的，不影响基础体验。
 
-### 决策 13：`build/id_registry.json` 稳定 id 注册表
-- **原因**：词库从 Obsidian 源文件重新解析生成时，必须保证同一个词永远拿到同一个 id。`id_registry.json` 记录 `key → id` 的永久映射；`sync.py` 还会拉取 Supabase 里有打卡记录的 id 强制保留，确保更新词库后老进度绝不丢失。
+## 步骤 5：接 Supabase 做多端同步
 
----
+**做什么**：注册免费 Supabase，在同一项目里建两张表，把打卡记录从本机提到云端。
 
-## 三、文件说明
+`supabase-schema.sql`（词汇打卡计数表）：
+```sql
+create table if not exists checkin (
+  id          integer     primary key,
+  count       integer     not null default 0,
+  first_used  timestamptz,
+  last_used   timestamptz,
+  mastery     text        not null default '未用'
+);
+alter table checkin enable row level security;
+drop policy if exists "anon_all" on checkin;
+create policy "anon_all" on checkin for all to anon using (true) with check (true);
+```
 
-| 文件 | 作用 | 修改频率 |
-|------|------|---------|
-| `index.html` | 页面入口，含三大标签与设置弹层 | 极少（加新大标签时） |
-| `styles.css` | 手机优先样式（米色 + 金棕护眼风） | 极少 |
-| `app.js`（?v=14） | 写作打卡逻辑 + Supabase 同步 + 分类 Tab | 更新词库后要改版本号 |
-| `data.js`（?v=7） | 1232 条词条数据（`window.VOCAB` / `window.CATEGORIES`） | 每次新增内容必改 |
-| `habits.js`（?v=3） | 早睡 / 方法打卡逻辑，Supabase 优先 + localStorage 降级 | 改习惯定义 / 加新习惯时 |
-| `supabase-schema.sql` | `checkin` 表建表脚本（仅首次执行） | 不改 |
-| `daily_counter.sql` | `daily_counter` 表建表脚本（仅首次执行） | 不改 |
-| `habits_schema.sql` | `habits` + `checkins` 表建表脚本（仅首次执行） | 不改 |
-| `build/sync.py` | 统一同步：解析全部源 → 分配稳定 id → 生成 data.js → 版本号 +1 | 词库更新时用 |
-| `build/sources.json` | 词库登记簿：每个源文件路径、parser 类型、是否启用 | 新增词库时 |
-| `build/id_registry.json` | id 注册表（心脏）：`key → id` 永久映射 | 自动维护 |
-| `build/parse.py`、`make_phrases.py`、`make_metaphors_quotes.py`、`merge_phrases.py` | 各素材类型的底层解析器，被 `sync.py` 调用 | 词库更新时用 |
+`daily_counter.sql`（每日趋势表）：
+```sql
+create table if not exists daily_counter (
+  day text primary key,   -- 本地日期 YYYY-M-D
+  n   integer not null default 0
+);
+alter table daily_counter enable row level security;
+drop policy if exists "anon_all" on daily_counter;
+create policy "anon_all" on daily_counter for all to anon using (true) with check (true);
+```
 
----
-
-## 四、用法
-
-**打开即用**：手机 / 电脑浏览器访问 https://huanghua-2019.github.io/check-in/ （如显示旧版，强刷 Ctrl/Cmd + Shift + R）。
-
-- **写作打卡**：顶部点「✍️ 写作」→ 左侧选子标签（词汇 / 句式 / 金句…）→ 搜词或按分类筛选 → 每条卡片点 `+1` 打卡。右上角 ⚙ 可导出 / 导入 JSON、清空本地记录。
-- **早睡打卡**：顶部点「🌙 早睡」→ 填入睡时间 → 提交。早于 23:00 算达标，显示连续达标天数。
-- **方法打卡**：顶部点「💡 方法」→ 选巴菲特 / 徐新 → 按自定义字段填表提交。
-
-**多设备同步**：默认已接入 Supabase（凭据写在 `habits.js` / `app.js` 内）。若从零配置，在设置弹层粘贴项目 URL 与 `anon key` 即可；留空则仅本机本地保存。
-
----
-
-## 五、Supabase 建表（只需执行一次）
-
-在同一个 Supabase 项目（`buzfmugezbemyfdmbgyt`）的 **SQL Editor** 里，分别粘贴执行以下三个脚本，每个跑一次：
-
-1. `supabase-schema.sql` → 建 `checkin` 表（词汇打卡）
-2. `daily_counter.sql` → 建 `daily_counter` 表（每日趋势）
-3. `habits_schema.sql` → 建 `habits` + `checkins` 表（通用打卡）
-
-三者都用 `create table if not exists` + `anon_all` 策略，**对已有表零侵入、零覆盖**。执行完可在表浏览器确认：`checkin` 仍为 57 条（若之前已有词汇记录），新增的 `habits` / `checkins` 为空表，前端首次打开会自动写入 3 条习惯种子（sleep / buffett / xu）。
-
-凭据（已写死进前端，无需手动填）：
+凭据写死进 `app.js`（个人单用户、纯前端直连、免后端）：
 ```
 Supabase URL:    https://buzfmugezbemyfdmbgyt.supabase.co
 Publishable Key: sb_publishable_HvD6YPPY-RpHLRicuoobSw_aSw1B_Ow
 ```
 
+**为什么**：
+- 要「多端共同维护」就必须有云端；Supabase 免费、提供 REST API，纯前端用 `anon key` 直连即可，不用自己写服务器。
+- `anon_all` RLS 策略：表里只存打卡计数，**不含敏感信息**，`anon key` 本就公开，放开读写对个人单用户可接受。
+- `create table if not exists`：建表脚本可反复执行且零覆盖（后面加别的表也不会动它）。
+
+## 步骤 6：部署上线
+
+**做什么**：
+1. 先试 CloudStudio 部署 —— 连续返回 400/500（免费沙盒配额耗尽、新沙盒起不来），放弃。
+2. 改部署到 GitHub Pages：本地建仓库 → push 到 `git@github.com:huanghua-2019/check-in.git` → 仓库 Settings → Pages → 选 `main` / `(root)`。
+3. 验证：`curl` 确认 https://huanghua-2019.github.io/check-in/ 返回 200 且含新版特征。
+
+**为什么**：CloudStudio 沙盒会休眠、额度有限且工具当时故障；GitHub Pages 常驻、免费、与代码同源，push 即生效，维护链路最短。
+
 ---
 
-## 六、词库更新流程（新增词汇 / 句式 / 金句等）
+# 阶段二：扩展成「通用打卡」（早睡 / 方法）
 
-词库的唯一源头是 Obsidian 源 md 文件。更新后一条命令重新生成数据：
+## 步骤 7：设计通用打卡数据模型
 
+**做什么**：用户要加「早睡打卡、巴菲特阅读手段、徐新研究手段」。抽象成一张「习惯定义表 + 一张打卡记录表」：
+
+`habits_schema.sql`：
+```sql
+create table if not exists habits (
+  id serial primary key,
+  key text unique,          -- 业务稳定 ID：sleep / buffett / xu
+  name text not null,
+  icon text,
+  color text,
+  type text default 'toggle',
+  fields jsonb,             -- 自定义字段数组
+  target text,              -- timed 类型达标阈值，如 "23:00"
+  sort int default 0,
+  created_at timestamptz default now()
+);
+create table if not exists checkins (
+  id serial primary key,
+  habit_id int references habits(id) on delete cascade,
+  ts timestamptz default now(),
+  value jsonb,              -- 按 fields 的答案集合
+  created_at timestamptz default now()
+);
+alter table habits enable row level security;
+alter table checkins enable row level security;
+drop policy if exists "anon_all" on habits;
+create policy "anon_all" on habits for all to anon using (true) with check (true);
+drop policy if exists "anon_all" on checkins;
+create policy "anon_all" on checkins for all to anon using (true) with check (true);
 ```
+
+**为什么**：
+- 早睡、巴菲特、徐新结构各不相同，但本质都是「一个习惯 + 多次打卡」。用 `habits` 定义习惯（含 `fields` 自定义字段数组），`checkins` 存每次答案（jsonb）。**加一个新习惯只需在 `habits` 插一行**，前端按 `fields` 自动渲染表单，不用改代码。
+- 同样落在**同一个 Supabase 项目**（`buzfmugezbemyfdmbgyt`），与 `checkin`/`daily_counter` 并列共存，不新建项目、不覆盖老数据。
+- 自定义字段（`fields`）：让巴菲特（用了哪个阅读法/读了什么/页数/心得）、徐新（哪个研究手段/对象/关键结论）这种「带多个属性」的打卡也能通用表达。
+
+## 步骤 8：三层大标签集成，不覆盖写作
+
+**做什么**：在 `index.html` 顶部加三个大标签 `✍️写作 / 🌙早睡 / 💡方法`，把原写作模块整体包进第一个标签，新增两个模块由 `habits.js` 驱动。写作放第一，原有数据和逻辑原样保留。
+
+**为什么**：用户要「各种打卡」通用软件，但不想覆盖已经用起来的写作打卡。做法是「外面套新标签、里面写作不动」，新增一类 = 加一个大标签 + 在 `habits` 插一行，互不干扰。
+
+## 步骤 9：本地预览确认效果
+
+**做什么**：先本地起 `python -m http.server` 预览三标签组合，用户确认「写作放第一、早睡/方法表单正常」后再部署。预览期 `habits.js` 先走 localStorage 版。
+
+**为什么**：部署前先肉眼验收，避免直接上公网发现布局/逻辑问题再回滚。
+
+## 步骤 10：把 habits 模块接上云端
+
+**做什么**：写 `habits_schema.sql`（步骤 7），把 `habits.js` 从 localStorage 版改写为 Supabase 优先版（URL/KEY 写死，检测空表自动 seed 三条习惯 sleep/buffett/xu，检测不到云端时回退 localStorage 并提示「本地模式」）。`index.html` 引用升到 `habits.js?v=3`。
+
+**为什么**：
+- 用户去 Supabase SQL Editor 跑一次 `habits_schema.sql` 建表（幂等、零覆盖 `checkin` 的 57 条老记录），以后早睡/方法打卡写 `checkins` 表，多端同步达成。
+- 降级逻辑保证：表没建 / 网络异常时页面照常可用、不白屏。
+
+## 步骤 11：修复 seed 失败（PGRST102）
+
+**做什么**：用户刷新后 `habits` 表仍空。排查发现 `habits.js` 批量 POST 三条 seed 时**字段键不一致**（sleep 有 `target`，buffett/xu 无）→ Supabase 报 `PGRST102 All object keys must match` → 前端 catch 回退本地、云端化失败。修复：①用 Python heredoc 直接 seed 三条（补齐 `target:null`）成功；②改 `habits.js` 给 buffett/xu 加 `target:null` 使 SEED 键一致，升 `v=3` 推送。
+
+**为什么（关键经验）**：
+- **PostgREST 批量 insert 要求所有行键完全一致**，否则整批拒绝。
+- 在沙箱里用命令行拼 JSON + emoji 容易被 shell 破坏，改用 `python - <<'PY'` heredoc 最稳。
+
+## 步骤 12：强刷验证，收尾
+
+**做什么**：用户强刷公网链接（Ctrl/Cmd + Shift + R），前端检测到 `habits` 已有 3 条 → 切云端模式。复检 `checkin` 仍 57 条 = 零覆盖铁证。当前状态：词汇打卡 57 条 + 早睡/方法接云端，三套数据同项目共存。
+
+**为什么**：强刷是因为浏览器对静态文件有缓存，版本号（`?v=N`）变了必须强制重新拉取，否则看到旧版。
+
+---
+
+# 附录 A：文件地图
+
+| 文件 | 作用 | 修改频率 |
+|------|------|---------|
+| `index.html` | 页面入口，三大标签 + 设置弹层 | 极少 |
+| `styles.css` | 手机优先护眼样式 | 极少 |
+| `app.js`（?v=14） | 写作打卡逻辑 + Supabase 同步 | 更词库后 bump 版本 |
+| `data.js`（?v=7） | 1232 条词条数据 | 每次新增内容必改 |
+| `habits.js`（?v=3） | 早睡/方法打卡，Supabase 优先 + 降级 | 改习惯定义时 |
+| `supabase-schema.sql` | `checkin` 建表（首次执行） | 不改 |
+| `daily_counter.sql` | `daily_counter` 建表（首次执行） | 不改 |
+| `habits_schema.sql` | `habits` + `checkins` 建表（首次执行） | 不改 |
+| `build/sync.py` | 统一同步：解析源→分配 id→生成 data.js | 词库更新时用 |
+| `build/sources.json` | 词库登记簿 | 新增词库时 |
+| `build/id_registry.json` | id 注册表（永久映射） | 自动维护 |
+
+# 附录 B：常用命令速查
+
+```bash
+# 1) 更新词库（Obsidian 改了源 md 后）
 cd D:\我的GitHub\check-in
 python build/sync.py
-```
+# 然后改 index.html 里 data.js 的 ?v=N +1，commit + push
 
-`sync.py` 会自动：解析全部启用的源 → 复用旧 id / 分配新 id → 生成 `data.js` → 版本号 +1 → 打印复用 / 新增报告 → 校验云端已有打卡记录全部保留。然后 push 到 GitHub 即生效。
-
-> 改了 `data.js` / `app.js` / `habits.js` 后，记得把 `index.html` 里对应的 `?v=N` 版本号 +1，否则浏览器可能读缓存。
-
----
-
-## 七、部署（GitHub Pages）
-
-本仓库即 GitHub Pages 源。`main` 分支根目录的静态文件会被自动发布到
-https://huanghua-2019.github.io/check-in/ 。
-
-本地改完文件后：
-```
+# 2) 推送到 GitHub Pages（注意用 merge，不用 rebase）
+cd D:\我的GitHub\check-in
 git add -A
-git commit -m "更新说明"
+git -c user.name=huanghua-2019 -c user.email=huanghua-2019@users.noreply.github.com commit -m "说明"
 git fetch origin
-git merge FETCH_HEAD --no-edit   # 用 merge，不用 rebase
-git push origin main
+git merge FETCH_HEAD --no-edit
+GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519" git push origin main
+
+# 3) 本地预览
+cd D:\我的GitHub\check-in
+python -m http.server 8090
+# 浏览器开 http://127.0.0.1:8090
 ```
-push 成功后稍等几十秒，强刷页面即可看到更新。
+
+# 附录 C：踩过的坑（关键教训）
+
+| 坑 | 现象 | 解决 |
+|----|------|------|
+| emoji 正则漏 `u` flag | 句式 Tab 只剩 2 个分类 | 所有 emoji 正则加 `/u` |
+| 批量 insert 键不一致 | `PGRST102`，seed 整批失败 | 所有行字段键对齐（补 `target:null`） |
+| 浏览器顽固缓存 | 改了 JS 页面无变化 | script 引用加 `?v=N` 并递增，用户强刷 |
+| CloudStudio 部署 400/500 | 公网链接起不来 | 改用 GitHub Pages |
+| git rebase 损坏 `.git` | `not a git repository` | 只用 `commit → fetch → merge`，禁 rebase/stash |
+| id 重排 | 云端记录对应错词 | id 一旦分配永不变，只从 max+1 追加 |
 
 ---
 
-## 八、已知限制 / 注意事项
-
-- **同步冲突**：单人正常使用不冲突；若同一词在两台设备离线各打一次再联网，以「最近使用时间」较新者为准（少计 1 次），属可接受范围。
-- **RLS 放开 anon**：当前为个人单用户、纯前端场景，表内不含敏感信息。若要多人共用或放敏感数据，需引入登录与按用户隔离的策略。
-- **iOS 不支持振动**：打卡时的 `navigator.vibrate` 已用 try/catch 包裹，iOS Safari 不会报错。
-- **CloudStudio 已弃用**：本项目不再使用 CloudStudio 部署，相关旧文档（如 `建站方法指南.md` 中仍写 CloudStudio）以本 README 为准。
+**当前公网地址**：https://huanghua-2019.github.io/check-in/
+**Supabase 项目**：`buzfmugezbemyfdmbgyt`（4 张表：checkin / daily_counter / habits / checkins）
