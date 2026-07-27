@@ -11,14 +11,14 @@
   const SEED = [
     { key: 'sleep', name: '早睡打卡', icon: '🌙', color: '#3a6ea5', type: 'timed', target: '23:00',
       fields: [{ key: 'sleep_time', label: '入睡时间', type: 'time' }] },
-    { key: 'buffett', name: '巴菲特阅读手段', icon: '💎', color: '#8a5cc4', type: 'pick',
+    { key: 'buffett', name: '巴菲特阅读手段', icon: '💎', color: '#8a5cc4', type: 'pick', target: null,
       fields: [
         { key: 'method', label: '用了哪个阅读法', type: 'select', options: ['每天500页', '读年报', '思维模型', '主题阅读'] },
         { key: 'book', label: '读了什么', type: 'text' },
         { key: 'pages', label: '页数', type: 'number' },
         { key: 'note', label: '心得', type: 'text' }
       ] },
-    { key: 'xu', name: '徐新研究手段', icon: '🔍', color: '#2f8f9d', type: 'pick',
+    { key: 'xu', name: '徐新研究手段', icon: '🔍', color: '#2f8f9d', type: 'pick', target: null,
       fields: [
         { key: 'method', label: '用了哪个研究手段', type: 'select', options: ['消费者访谈', '看赛道', '长期持有研究', '专家访谈'] },
         { key: 'target', label: '访谈/研究对象', type: 'text' },
