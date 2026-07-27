@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>高频词汇打卡</title>
+<link rel="stylesheet" href="styles.css?v=14">
+</head>
+<body class="has-bt">
+<div id="bigTabs" class="big-tabs">
+  <button class="btab active" data-mod="writing">✍️ 写作</button>
+  <button class="btab" data-mod="sleep">🌙 早睡</button>
+  <button class="btab" data-mod="method">💡 方法</button>
+</div>
+<section id="mod-writing" class="module">
+<button id="menuBtn" class="menu-btn" aria-label="菜单">☰</button>
+<div id="backdrop" class="backdrop"></div>
+
+<aside id="sidebar" class="sidebar">
+  <div class="sb-head">
+    <span class="sb-logo">📒</span>
+    <span class="sb-title">高频词汇打卡</span>
+    <button id="closeSidebar" class="close-btn" aria-label="关闭">×</button>
+  </div>
+  <nav class="sb-tabs" id="tabs"></nav>
+  <div class="sb-foot">
+    <button id="settingsBtn2" class="sb-link">⚙ 同步设置</button>
+  </div>
+</aside>
+
+<div class="main-wrap">
+  <header class="topbar">
+    <button id="menuBtn2" class="menu-btn menu-btn-inline" aria-label="菜单">☰</button>
+    <div class="title">
+      <h1>高频词汇打卡</h1>
+      <div class="stats">
+        <div>已打卡 <b id="done">0</b>/<span id="totalWords">0</span> · 总次数 <b id="totalCount">0</b></div>
+        <div class="stats-sub">今日 <b id="todayCount">0</b> · 连续 <b id="streak">0</b> 天</div>
+      </div>
+    </div>
+    <button id="settingsBtn" class="icon-btn" aria-label="设置">⚙</button>
+  </header>
+  <div class="progress"><div class="bar" id="progressBar"></div></div>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="搜词 / 同义词 / 释义…" autocomplete="off">
+    <div class="chip-row" id="statusFilter">
+      <button class="chip active" data-f="all">全部</button>
+      <button class="chip" data-f="unused">未打卡</button>
+      <button class="chip" data-f="used">已打卡</button>
+      <button class="chip" data-f="review">待复习</button>
+    </div>
+    <div class="chip-row" id="masteryFilter">
+      <button class="chip active" data-m="all">掌握·全部</button>
+      <button class="chip" data-m="未用">未用</button>
+      <button class="chip" data-m="偶尔">偶尔</button>
+      <button class="chip" data-m="熟练">熟练</button>
+    </div>
+    <div class="chip-row" id="catFilter"></div>
+    <div class="toolbar-foot">
+      <button id="toggleAll" class="link-btn" type="button">展开全部 ▾</button>
+      <button id="expandReview" class="link-btn review-expand" type="button" hidden>展开待复习 ▾</button>
+    </div>
+  </div>
+
+  <main id="list"></main>
+</div>
+</section>
+
+<div id="mod-sleep" class="module" hidden>
+  <div class="mod-page">
+    <div class="mod-head"><h1>🌙 早睡打卡</h1><span class="sub">记录入睡时间 · 23:00 前达标</span></div>
+    <div id="sleep-list"></div>
+  </div>
+</div>
+<div id="mod-method" class="module" hidden>
+  <div class="mod-page">
+    <div class="mod-head"><h1>💡 方法打卡</h1><span class="sub">巴菲特阅读 · 徐新研究</span></div>
+    <div id="method-list"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- 设置弹层 -->
+<div id="settingsModal" class="modal hidden">
+  <div class="modal-card">
+    <h2>同步设置</h2>
+    <p class="hint">选填。粘贴 Supabase 项目 URL 与 anon key 即可实现手机/电脑自动同步。不填则仅本机本地保存。</p>
+    <label>Supabase URL</label>
+    <input id="sbUrl" type="text" placeholder="https://xxxx.supabase.co">
+    <label>anon key（公开密钥）</label>
+    <input id="sbKey" type="text" placeholder="eyJhbGciOi...">
+    <div class="row">
+      <button id="sbSave" class="primary">保存并连接</button>
+      <button id="sbClear">断开</button>
+    </div>
+    <div id="sbStatus" class="status"></div>
+    <hr>
+    <div class="row">
+      <button id="exportBtn">导出 JSON</button>
+      <button id="importBtn">导入 JSON</button>
+      <input id="importFile" type="file" accept="application/json" hidden>
+    </div>
+    <hr>
+    <button id="resetBtn" class="danger">清空本地打卡记录</button>
+    <button id="closeSettings" class="ghost">关闭</button>
+  </div>
+</div>
+
+<script src="data.js?v=7"></script>
+<script src="app.js?v=14"></script>
+<script src="habits.js?v=1"></script>
+</body>
+</html>
