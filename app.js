@@ -404,8 +404,7 @@
     const stats = document.createElement('div'); stats.className = 'hero-stats';
     const items = [
       { n: totalWords, l: '词条总量' },
-      { n: done, l: '已打卡' },
-      { n: total, l: '累计次数' },
+      { n: done, l: '已打卡词条' },
       { n: todayCount(), l: '今日打卡' },
       { n: streak(), l: '连续天数' },
     ];
