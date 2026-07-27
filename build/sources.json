@@ -1,0 +1,16 @@
+{
+  "root": "D:/华的obsidian/210-写作提高/002-知识图谱",
+  "note": "词库登记簿：sync.py 读取本文件决定解析哪些源文件。新增词库只需加一行 enabled:true 的配置；001/008/009 为导航与方法论，永久不上线。",
+  "sources": [
+    {"id": "vocab",     "file": "002-高频词汇库.md",  "parser": "vocab",     "enabled": true,  "order": 1, "desc": "写作高级词汇"},
+    {"id": "phrases",   "file": "005-句式工具箱.md",  "parser": "phrases",   "enabled": true,  "order": 2, "desc": "写作句式模板"},
+    {"id": "quotes",    "file": "003-金句调用地图.md", "parser": "quotes",    "enabled": true,  "order": 3, "desc": "金句"},
+    {"id": "metaphors", "file": "004-比喻调用地图.md", "parser": "metaphors", "enabled": true,  "order": 4, "desc": "比喻"},
+    {"id": "cases",     "file": "006-案例素材库.md",  "parser": "cases",     "enabled": true,  "order": 5, "desc": "案例素材"},
+    {"id": "humor",     "file": "007-幽默弹药库.md",  "parser": "humor",     "enabled": true,  "order": 6, "desc": "幽默弹药"},
+
+    {"id": "overview",  "file": "001-知识图谱总览.md", "parser": "skip",      "enabled": false, "order": 99, "desc": "导航总览，不上线"},
+    {"id": "guide",     "file": "008-使用指南.md",    "parser": "skip",      "enabled": false, "order": 99, "desc": "方法论，不上线"},
+    {"id": "summary",   "file": "009-要点总结方法.md", "parser": "skip",      "enabled": false, "order": 99, "desc": "方法论，不上线"}
+  ]
+}
