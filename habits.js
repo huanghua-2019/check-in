@@ -158,6 +158,89 @@
   function getHabit(key) { return habitByKey[key]; }
 
   /* ---------- 早睡模块 ---------- */
+  function allOf(key) {
+    if (!useCloud) return (localLogs[key] || []).slice();
+    const h = habitByKey[key]; if (!h) return [];
+    return checkins.filter(c => c.habit_id === h.id);
+  }
+  async function deleteRec(key, rec) {
+    if (useCloud && rec.id != null) { await deleteCheckin(rec.id); return; }
+    const day = rec.day || localDayOf(rec.ts);
+    localLogs[key] = (localLogs[key] || []).filter(r => (r.day || localDayOf(r.ts)) !== day);
+    saveLocal();
+  }
+  function minToHHMM(m) {
+    m = Math.round(m);
+    const h = ((Math.floor(m / 60)) % 24 + 24) % 24;
+    const mm = ((m % 60) + 60) % 60;
+    return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm;
+  }
+
+  function buildTrend(recs) {
+    const wrap = document.createElement('div'); wrap.className = 'sleep-trend';
+    wrap.innerHTML = '<div class="sec-t">📈 入睡时间趋势</div>';
+    if (recs.length < 2) {
+      const tip = document.createElement('div'); tip.className = 'trend-empty';
+      tip.textContent = recs.length === 0 ? '还没有打卡记录' : '至少打卡 2 天才能看到趋势';
+      wrap.appendChild(tip); return wrap;
+    }
+    const W = 360, H = 172, padL = 38, padR = 12, padT = 14, padB = 26;
+    const pts = recs.map(r => timeToMin((r.value && r.value.sleep_time) || '23:00'));
+    let minM = Math.min.apply(null, pts), maxM = Math.max.apply(null, pts);
+    if (maxM - minM < 60) { const c = (minM + maxM) / 2; minM = c - 30; maxM = c + 30; }
+    minM -= 15; maxM += 15;
+    const n = pts.length;
+    const X = i => padL + (n === 1 ? 0 : (i / (n - 1)) * (W - padL - padR));
+    const Y = m => padT + (1 - (m - minM) / (maxM - minM)) * (H - padT - padB);
+    const tMin = timeToMin((habitByKey.sleep && habitByKey.sleep.target) || '23:00');
+    let s = '<svg class="trend-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">';
+    for (let k = 0; k <= 2; k++) {
+      const m = minM + (maxM - minM) * k / 2;
+      const yy = Y(m);
+      s += '<line x1="' + padL + '" y1="' + yy.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + yy.toFixed(1) + '" stroke="#ece5d6"/>';
+      s += '<text x="' + (padL - 4) + '" y="' + (yy + 3).toFixed(1) + '" text-anchor="end">' + minToHHMM(m % 1440) + '</text>';
+    }
+    if (tMin >= minM && tMin <= maxM) {
+      const ty = Y(tMin);
+      s += '<line x1="' + padL + '" y1="' + ty.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + ty.toFixed(1) + '" stroke="#2f9e44" stroke-width="1" stroke-dasharray="4 4"/>';
+      s += '<text x="' + (W - padR) + '" y="' + (ty - 3).toFixed(1) + '" text-anchor="end" fill="#2f9e44">23:00 达标线</text>';
+    }
+    let line = '';
+    recs.forEach((r, i) => { line += X(i).toFixed(1) + ',' + Y(pts[i]).toFixed(1) + ' '; });
+    s += '<polyline points="' + line.trim() + '" fill="none" stroke="#b8861b" stroke-width="2" stroke-linejoin="round"/>';
+    recs.forEach((r, i) => {
+      const onT = r.value && r.value.on_target;
+      const col = onT ? '#2f9e44' : '#b8861b';
+      const lab = localDayOf(r.ts) + ' ' + ((r.value && r.value.sleep_time) || '');
+      s += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(pts[i]).toFixed(1) + '" r="3" fill="' + col + '"><title>' + lab + '</title></circle>';
+    });
+    s += '<text x="' + X(0).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="start">' + localDayOf(recs[0].ts).slice(5) + '</text>';
+    s += '<text x="' + X(n - 1).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="end">' + localDayOf(recs[n - 1].ts).slice(5) + '</text>';
+    s += '</svg>';
+    wrap.innerHTML += s;
+    return wrap;
+  }
+
+  function buildHistory(recs) {
+    const wrap = document.createElement('div'); wrap.className = 'sleep-history';
+    wrap.innerHTML = '<div class="sec-t">📋 历史记录 <span class="cnt">' + recs.length + '</span></div>';
+    if (!recs.length) { const e = document.createElement('div'); e.className = 'trend-empty'; e.textContent = '暂无记录'; wrap.appendChild(e); return wrap; }
+    const ul = document.createElement('div'); ul.className = 'hist-list';
+    recs.slice().reverse().forEach(r => {
+      const t = (r.value && r.value.sleep_time) || '';
+      const onT = r.value && r.value.on_target;
+      const day = localDayOf(r.ts);
+      const item = document.createElement('div'); item.className = 'hist-item' + (onT ? ' ok' : '');
+      item.innerHTML = '<span class="hd">' + day.slice(5) + '</span><span class="ht">' + (t || '—') + '</span><span class="hb">' + (onT ? '🌟达标' : '—') + '</span>';
+      const del = document.createElement('button'); del.className = 'hist-del'; del.textContent = '×';
+      del.addEventListener('click', async () => { await deleteRec('sleep', r); renderSleep(); toast('已删除'); });
+      item.appendChild(del);
+      ul.appendChild(item);
+    });
+    wrap.appendChild(ul);
+    return wrap;
+  }
+
   function renderSleep() {
     const root = document.getElementById('sleep-list'); if (!root) return;
     root.innerHTML = '';
@@ -198,8 +281,13 @@
       strip.appendChild(el);
     });
     card.appendChild(strip);
-    if (!useCloud) { const tag = document.createElement('div'); tag.style.cssText = 'font-size:11px;color:#999;margin-top:6px'; tag.textContent = '（本地模式：去 Supabase 跑 habits_schema.sql 后自动转云端）'; card.appendChild(tag); }
     root.appendChild(card);
+
+    const recs = allOf('sleep').slice().sort((a, b) => new Date(a.ts) - new Date(b.ts));
+    root.appendChild(buildTrend(recs));
+    root.appendChild(buildHistory(recs));
+
+    if (!useCloud) { const tag = document.createElement('div'); tag.style.cssText = 'font-size:11px;color:#999;margin-top:6px'; tag.textContent = '（本地模式：去 Supabase 跑 habits_schema.sql 后自动转云端）'; card.appendChild(tag); }
   }
 
   /* ---------- 方法模块（巴菲特 + 徐新） ---------- */

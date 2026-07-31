@@ -463,3 +463,21 @@ body.has-bt .menu-btn,body.has-bt #menuBtn{top:66px}
 .week-strip{display:flex;gap:6px;margin-top:14px}
 .week-strip .d{flex:1;text-align:center;font-size:11px;color:var(--sub);padding:6px 0;border-radius:8px;background:var(--bg-2)}
 .week-strip .d.on{background:var(--brand-soft);color:var(--brand);font-weight:700}
+
+/* ===== 睡眠趋势图 & 历史记录 ===== */
+.sleep-trend,.sleep-history{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-lg);padding:14px 16px;margin:12px;box-shadow:0 2px 10px rgba(120,90,20,.06)}
+.sec-t{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.sec-t .cnt{font-size:12px;color:var(--brand);background:var(--brand-soft);border-radius:999px;padding:1px 8px;font-weight:700}
+.trend-empty{font-size:13px;color:var(--sub);padding:10px 2px}
+.trend-svg{width:100%;height:auto;display:block}
+.trend-svg text{font-size:9px;fill:var(--sub)}
+.hist-list{display:flex;flex-direction:column}
+.hist-item{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line)}
+.hist-item:last-child{border-bottom:none}
+.hist-item .hd{font-size:13px;color:var(--ink-2);width:46px;flex-shrink:0}
+.hist-item .ht{font-size:15px;font-weight:700;color:var(--ink);flex:1}
+.hist-item.ok .ht{color:var(--brand)}
+.hist-item .hb{font-size:12px;color:var(--sub);width:56px;text-align:right;flex-shrink:0}
+.hist-item.ok .hb{color:#2f9e44}
+.hist-del{border:none;background:var(--bg-2);color:var(--sub);width:26px;height:26px;border-radius:8px;font-size:16px;line-height:1;cursor:pointer;flex-shrink:0}
+.hist-del:hover{background:#f3d9d9;color:#c0392b}
