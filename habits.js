@@ -187,14 +187,14 @@
       wrap.appendChild(tip); return wrap;
     }
     const W = 360, H = 172, padL = 38, padR = 12, padT = 14, padB = 26;
-    const pts = recs.map(r => sleepOffset(timeToMin((r.value && r.value.sleep_time) || '00:40')));
+    const pts = recs.map(r => sleepOffset((r.value && r.value.sleep_time) || '00:40'));
     let minM = Math.min.apply(null, pts), maxM = Math.max.apply(null, pts);
     if (maxM - minM < 60) { const c = (minM + maxM) / 2; minM = c - 30; maxM = c + 30; }
     minM -= 15; maxM += 15;
     const n = pts.length;
     const X = i => padL + (n === 1 ? 0 : (i / (n - 1)) * (W - padL - padR));
     const Y = m => padT + (1 - (m - minM) / (maxM - minM)) * (H - padT - padB);
-    const tMin = sleepOffset(timeToMin((habitByKey.sleep && habitByKey.sleep.target) || '00:40'));
+    const tMin = sleepOffset((habitByKey.sleep && habitByKey.sleep.target) || '00:40');
     let s = '<svg class="trend-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">';
     for (let k = 0; k <= 2; k++) {
       const m = minM + (maxM - minM) * k / 2;
