@@ -9,7 +9,7 @@
 
   // 种子习惯（云端 habits 表为空时写入；key 为业务稳定 ID）
   const SEED = [
-    { key: 'sleep', name: '早睡打卡', icon: '🌙', color: '#3a6ea5', type: 'timed', target: '23:00',
+    { key: 'sleep', name: '早睡打卡', icon: '🌙', color: '#3a6ea5', type: 'timed', target: '00:40',
       fields: [{ key: 'sleep_time', label: '入睡时间', type: 'time' }] },
     { key: 'buffett', name: '巴菲特阅读手段', icon: '💎', color: '#8a5cc4', type: 'pick', target: null,
       fields: [
@@ -175,6 +175,8 @@
     const mm = ((m % 60) + 60) % 60;
     return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm;
   }
+  // 跨午夜偏移轴：21:00 起算，00:xx 放到次日段，使"早于 target 即达标"在 23:xx~00:xx 正确
+  function sleepOffset(t) { const m = timeToMin(t); return m < 1260 ? m + 1440 : m; }
 
   function buildTrend(recs) {
     const wrap = document.createElement('div'); wrap.className = 'sleep-trend';
@@ -185,14 +187,14 @@
       wrap.appendChild(tip); return wrap;
     }
     const W = 360, H = 172, padL = 38, padR = 12, padT = 14, padB = 26;
-    const pts = recs.map(r => timeToMin((r.value && r.value.sleep_time) || '23:00'));
+    const pts = recs.map(r => sleepOffset(timeToMin((r.value && r.value.sleep_time) || '00:40')));
     let minM = Math.min.apply(null, pts), maxM = Math.max.apply(null, pts);
     if (maxM - minM < 60) { const c = (minM + maxM) / 2; minM = c - 30; maxM = c + 30; }
     minM -= 15; maxM += 15;
     const n = pts.length;
     const X = i => padL + (n === 1 ? 0 : (i / (n - 1)) * (W - padL - padR));
     const Y = m => padT + (1 - (m - minM) / (maxM - minM)) * (H - padT - padB);
-    const tMin = timeToMin((habitByKey.sleep && habitByKey.sleep.target) || '23:00');
+    const tMin = sleepOffset(timeToMin((habitByKey.sleep && habitByKey.sleep.target) || '00:40'));
     let s = '<svg class="trend-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">';
     for (let k = 0; k <= 2; k++) {
       const m = minM + (maxM - minM) * k / 2;
@@ -203,7 +205,7 @@
     if (tMin >= minM && tMin <= maxM) {
       const ty = Y(tMin);
       s += '<line x1="' + padL + '" y1="' + ty.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + ty.toFixed(1) + '" stroke="#2f9e44" stroke-width="1" stroke-dasharray="4 4"/>';
-      s += '<text x="' + (W - padR) + '" y="' + (ty - 3).toFixed(1) + '" text-anchor="end" fill="#2f9e44">23:00 达标线</text>';
+      s += '<text x="' + (W - padR) + '" y="' + (ty - 3).toFixed(1) + '" text-anchor="end" fill="#2f9e44">' + minToHHMM(tMin % 1440) + ' 达标线</text>';
     }
     let line = '';
     recs.forEach((r, i) => { line += X(i).toFixed(1) + ',' + Y(pts[i]).toFixed(1) + ' '; });
@@ -267,7 +269,7 @@
       const btn = document.createElement('button'); btn.className = 'btn-primary'; btn.textContent = '打卡';
       btn.addEventListener('click', async () => {
         const t = ti.value || nowStr();
-        const onTarget = timeToMin(t) <= timeToMin(h.target);
+        const onTarget = sleepOffset(t) <= sleepOffset(h.target);
         await postCheckin(h.id, new Date().toISOString(), { sleep_time: t, on_target: onTarget });
         renderSleep(); toast('✓ 已打卡 · ' + (onTarget ? '🌟达标' : '未达标'));
       });
