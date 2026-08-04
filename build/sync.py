@@ -28,7 +28,7 @@ import json, re, os, sys, ssl, urllib.request
 from collections import Counter
 from datetime import datetime
 
-ROOT    = r"C:\Users\Lenovo\WorkBuddy\2026-07-21-16-55-18\vocab-checkin"
+ROOT    = r"D:\我的GitHub\check-in"
 SRC     = os.path.join(ROOT, "build", "sources.json")
 REG     = os.path.join(ROOT, "build", "id_registry.json")
 DATA_JS = os.path.join(ROOT, "data.js")
@@ -283,6 +283,20 @@ def main():
         for c in cs:
             if c not in all_cats: all_cats.append(c)
         print(f"  ✓ {s['file']:24s} 解析 {len(its):3d} 条 / {len(cs)} 分类")
+
+    # 0.5) 去重：同一 (tab,cat,word) 只保留首次出现，避免源表重复行产生重复 id
+    #      （跨分类的同词属于不同 key，不受影响，正常保留）
+    seen, deduped, dup_n = set(), [], 0
+    for it in all_items:
+        k = it['tab'] + SEP + it['cat'] + SEP + norm_key(it['word'])
+        if k in seen:
+            dup_n += 1
+            continue
+        seen.add(k)
+        deduped.append(it)
+    all_items = deduped
+    if dup_n:
+        print(f"  ✓ 源表去重：跳过 {dup_n} 条同分类重复行")
 
     new_tabs = set(it['tab'] for it in all_items)
     current_keys = set(it['tab'] + SEP + it['cat'] + SEP + norm_key(it['word']) for it in all_items)

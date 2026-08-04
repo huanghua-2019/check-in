@@ -1,5 +1,5 @@
 {
-  "root": "D:/华的obsidian/210-写作提高/002-知识图谱",
+  "root": "D:/我的GitHub/华的obsidian/210-写作提高/002-知识图谱",
   "note": "词库登记簿：sync.py 读取本文件决定解析哪些源文件。新增词库只需加一行 enabled:true 的配置；001/008/009 为导航与方法论，永久不上线。",
   "sources": [
     {"id": "vocab",     "file": "002-高频词汇库.md",  "parser": "vocab",     "enabled": true,  "order": 1, "desc": "写作高级词汇"},
