@@ -38,6 +38,6 @@ create policy "anon_all"
   to anon
   using (true) with check (true);
 
--- 后续扩展列（幂等，可重复执行）：archived 归档标记 + desc 卡片一句话简介
+-- 后续扩展列（幂等，可重复执行）：archived 归档标记
+-- 注：框架卡片的"一句话简介"已改为直接写在网页代码(FRAME_DESC)里，不另设数据库列。
 alter table habits add column if not exists archived boolean default false;
-alter table habits add column if not exists desc text;

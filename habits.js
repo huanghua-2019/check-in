@@ -37,6 +37,12 @@
   const PALETTE = ['#8a5cc4','#2f8f9d','#b8861b','#2f9e44','#c0504d','#3a6ea5','#d9883b','#6a51a3','#1f9e8a','#a8632b'];
   const FIELD_TYPES = ['text','number','time','select'];
 
+  // 内置框架卡片的静态一句话简介（直接写在网页上，不进数据库，避免 reserved keyword 问题）
+  const FRAME_DESC = {
+    buffett: '每年海量阅读年报、财报与传记，用多学科思维模型看懂生意再下注。',
+    xu: '靠一手消费者 / 专家访谈与赛道研判做长期投资，重仓真正看懂的生意。'
+  };
+
   let useCloud = false;
   let habits = [];
   const habitByKey = {};
@@ -124,7 +130,7 @@
     if (!useCloud) { toast('本地模式暂不支持新建/编辑'); return null; }
     const body = {
       name: data.name, icon: data.icon, color: data.color, type: data.type || 'pick',
-      target: data.target == null ? null : data.target, fields: data.fields, desc: data.desc || '', archived: false
+      target: data.target == null ? null : data.target, fields: data.fields, archived: false
     };
     if (existingId != null) {
       await sbFetch('habits?id=eq.' + existingId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -504,7 +510,8 @@
     let html = '<div class="hc-top"><div class="hc-ico">' + h.icon + '</div><div class="hc-name">' + h.name + '</div>';
     html += today ? '<span class="ok-badge">今日已打卡</span>' : '<span class="hc-status">今日未打卡</span>';
     html += '</div>';
-    if (h.desc) html += '<div class="m-desc">' + esc(h.desc) + '</div>';
+    const intro = h.desc || FRAME_DESC[h.key];
+    if (intro) html += '<div class="m-desc">' + esc(intro) + '</div>';
     // 熟练度（替代原来的 累计/本周/连续 统计）
     const lv = methodLevel(h.key);
     html += '<div class="m-level"><span class="lv-badge ' + lv.cls + '">' + lv.label + '</span><span class="lv-sub">已实践 ' + allOf(h.key).length + ' 次</span></div>';
@@ -614,12 +621,6 @@
     });
     colWrap.appendChild(colRow); box.appendChild(colWrap);
 
-    // 一句话简介（显示在卡片上，让卡片当教学工具）
-    const descWrap = document.createElement('div'); descWrap.className = 'habit-form';
-    descWrap.innerHTML = '<label>一句话简介（这张卡片教什么 / 核心理念，显示在卡片上）</label>';
-    const descInp = document.createElement('input'); descInp.type = 'text'; descInp.value = data.desc || ''; descInp.placeholder = '如：先看懂生意模式，再下注'; descWrap.appendChild(descInp);
-    box.appendChild(descWrap);
-
     // 字段编辑器
     const fWrap = document.createElement('div'); fWrap.className = 'habit-form';
     fWrap.innerHTML = '<label>字段（点输入框可直接改名 · 可增删）</label>';
@@ -666,12 +667,11 @@
         if (type === 'select') { const opts = (opt.value || '').split(',').map(s => s.trim()).filter(Boolean); fld.options = opts.length ? opts : ['选项1']; }
         fields.push(fld);
       });
-      const desc = descInp.value.trim();
       try {
-        await upsertHabit({ name, icon: curIcon, color: curColor, type: 'pick', target: null, fields, desc }, habit ? habit.id : null);
+        await upsertHabit({ name, icon: curIcon, color: curColor, type: 'pick', target: null, fields }, habit ? habit.id : null);
         overlay.remove(); renderMethod(); toast(isEdit ? '✓ 已保存' : '✓ 已创建');
       } catch (e) {
-        toast('保存失败：请先在 Supabase 给 habits 表加 desc 列（见对话里的 SQL）');
+        toast('保存失败，请稍后重试');
       }
     });
     const cancel = document.createElement('button'); cancel.className = 'btn-ghost'; cancel.textContent = '取消';
