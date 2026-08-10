@@ -584,7 +584,7 @@
 
     // 名称
     const nameWrap = document.createElement('div'); nameWrap.className = 'habit-form';
-    nameWrap.innerHTML = '<label>名称（必填）</label>';
+    nameWrap.innerHTML = '<label>方法名称（必填，可随时改名）</label>';
     const nameInp = document.createElement('input'); nameInp.type = 'text'; nameInp.value = data.name; nameInp.placeholder = '如：段永平研究手段';
     nameWrap.appendChild(nameInp); box.appendChild(nameWrap);
 
@@ -614,7 +614,7 @@
 
     // 字段编辑器
     const fWrap = document.createElement('div'); fWrap.className = 'habit-form';
-    fWrap.innerHTML = '<label>打卡字段（可增删，随时改）</label>';
+    fWrap.innerHTML = '<label>字段（点输入框可直接改名 · 可增删）</label>';
     const fList = document.createElement('div'); fList.className = 'field-list';
     fWrap.appendChild(fList);
     function addFieldRow(f) {
