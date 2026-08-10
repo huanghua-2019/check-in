@@ -609,12 +609,13 @@
     const fList = document.createElement('div'); fList.className = 'field-list';
     fWrap.appendChild(fList);
     function addFieldRow(f) {
-      f = f || { label: '', type: 'text', options: [] };
+      f = f || { label: '', type: 'text', options: [], key: '' };
       const row = document.createElement('div'); row.className = 'field-row';
-      const lab = document.createElement('input'); lab.type = 'text'; lab.placeholder = '字段名'; lab.value = f.label || '';
-      const typ = document.createElement('select');
+      if (f.key) row.dataset.fkey = f.key; // 保留原字段 key，编辑时不破坏历史打卡数据
+      const lab = document.createElement('input'); lab.type = 'text'; lab.className = 'f-label'; lab.placeholder = '字段名'; lab.value = f.label || '';
+      const typ = document.createElement('select'); typ.className = 'f-type';
       FIELD_TYPES.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = ({ text: '文本', number: '数字', time: '时间', select: '单选' })[t]; if (t === f.type) o.selected = true; typ.appendChild(o); });
-      const opt = document.createElement('input'); opt.type = 'text'; opt.placeholder = '单选选项(逗号分隔)'; opt.value = (f.options || []).join(','); opt.style.flex = '2';
+      const opt = document.createElement('input'); opt.type = 'text'; opt.className = 'f-opt'; opt.placeholder = '单选选项(逗号分隔)'; opt.value = (f.options || []).join(','); opt.style.flex = '2';
       const rm = document.createElement('button'); rm.className = 'field-rm'; rm.textContent = '×';
       rm.addEventListener('click', () => row.remove());
       typ.addEventListener('change', () => { opt.style.display = typ.value === 'select' ? '' : 'none'; });
@@ -636,12 +637,16 @@
       if (!name) { toast('请填名称'); return; }
       const fields = [];
       fList.querySelectorAll('.field-row').forEach(row => {
-        const inp = row.querySelectorAll('input');
-        const label = inp[0].value.trim();
-        const type = inp[1].value;
+        const lab = row.querySelector('.f-label');
+        const typ = row.querySelector('.f-type');
+        const opt = row.querySelector('.f-opt');
+        const label = (lab.value || '').trim();
+        const type = typ.value;
         if (!label) return;
-        const fld = { key: 'f_' + label.replace(/[^\w一-龥]/g, ''), label, type };
-        if (type === 'select') { const opts = inp[2].value.split(',').map(s => s.trim()).filter(Boolean); fld.options = opts.length ? opts : ['选项1']; }
+        // 编辑已有字段时保留原 key；仅新建字段才按名称生成 key
+        const key = row.dataset.fkey || ('f_' + label.replace(/[^\w一-龥]/g, ''));
+        const fld = { key, label, type };
+        if (type === 'select') { const opts = (opt.value || '').split(',').map(s => s.trim()).filter(Boolean); fld.options = opts.length ? opts : ['选项1']; }
         fields.push(fld);
       });
       await upsertHabit({ name, icon: curIcon, color: curColor, type: 'pick', target: null, fields }, habit ? habit.id : null);
