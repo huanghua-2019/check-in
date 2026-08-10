@@ -514,6 +514,10 @@ body.has-bt .menu-btn,body.has-bt #menuBtn{top:66px}
 .method-card .lv-badge.lv2{background:rgba(47,158,68,.14);color:#2f9e44;border:1px solid #2f9e44}
 .method-card .lv-sub{color:var(--ink-2)}
 .method-card .m-today{font-size:13px;color:var(--ink-2);margin-top:6px;line-height:1.4}
+.method-card .m-desc{font-size:12.5px;color:var(--ink-2);margin-top:8px;line-height:1.5;border-left:3px solid var(--brand-soft);padding:2px 0 2px 9px}
+.method-card .m-records .ht{white-space:normal;word-break:break-word;line-height:1.45}
+.refl{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:var(--radius);padding:9px 10px;font:inherit;font-size:14px;background:var(--card);color:var(--ink);resize:vertical;line-height:1.5}
+.refl:focus{outline:none;border-color:var(--brand)}
 .method-card .m-ops{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .method-card .m-ops .btn-primary,.method-card .m-ops .btn-ghost{margin-top:0;flex:0 0 auto}
 .method-card .m-ops .btn-ghost{flex:1;min-width:64px}

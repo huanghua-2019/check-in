@@ -52,6 +52,7 @@
   function timeToMin(t) { const a = (t || '').split(':'); if (a.length < 2) return 0; return (+a[0]) * 60 + (+a[1]); }
   function localDayOf(iso) { const d = new Date(iso); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
   function dayDiff(a, b) { const x = new Date(a + 'T00:00:00'), y = new Date(b + 'T00:00:00'); return Math.round((y - x) / 86400000); }
+  function esc(s) { return (s == null ? '' : ('' + s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
   async function sbFetch(path, opts) {
     opts = opts || {};
@@ -123,7 +124,7 @@
     if (!useCloud) { toast('本地模式暂不支持新建/编辑'); return null; }
     const body = {
       name: data.name, icon: data.icon, color: data.color, type: data.type || 'pick',
-      target: data.target == null ? null : data.target, fields: data.fields, archived: false
+      target: data.target == null ? null : data.target, fields: data.fields, desc: data.desc || '', archived: false
     };
     if (existingId != null) {
       await sbFetch('habits?id=eq.' + existingId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -503,10 +504,11 @@
     let html = '<div class="hc-top"><div class="hc-ico">' + h.icon + '</div><div class="hc-name">' + h.name + '</div>';
     html += today ? '<span class="ok-badge">今日已打卡</span>' : '<span class="hc-status">今日未打卡</span>';
     html += '</div>';
+    if (h.desc) html += '<div class="m-desc">' + esc(h.desc) + '</div>';
     // 熟练度（替代原来的 累计/本周/连续 统计）
     const lv = methodLevel(h.key);
     html += '<div class="m-level"><span class="lv-badge ' + lv.cls + '">' + lv.label + '</span><span class="lv-sub">已实践 ' + allOf(h.key).length + ' 次</span></div>';
-    if (today) html += '<div class="m-today">' + (fieldSummary(h, today.value) || '已打卡') + '</div>';
+    if (today) html += '<div class="m-today">' + (esc(today.value && today.value.note) || '已打卡') + '</div>';
     card.innerHTML = html;
 
     // 操作行
@@ -544,7 +546,8 @@
       const ul = document.createElement('div'); ul.className = 'hist-list';
       recs.slice().reverse().forEach(r => {
         const item = document.createElement('div'); item.className = 'hist-item';
-        item.innerHTML = '<span class="hd">' + localDayOf(r.ts).slice(5) + '</span><span class="ht">' + (fieldSummary(h, r.value) || '—') + '</span>';
+        const note = (r.value && r.value.note) || '';
+        item.innerHTML = '<span class="hd">' + localDayOf(r.ts).slice(5) + '</span><span class="ht">' + (esc(note) || '已打卡') + '</span>';
         const del = document.createElement('button'); del.className = 'hist-del'; del.textContent = '×';
         del.addEventListener('click', async () => { await deleteRec(h.key, r); renderMethod(); toast('已删除'); });
         item.appendChild(del);
@@ -559,12 +562,11 @@
   function openCheckin(h, card) {
     card.innerHTML = '<div class="hc-top"><div class="hc-ico">' + h.icon + '</div><div class="hc-name">' + h.name + '</div></div>';
     const form = document.createElement('div'); form.className = 'habit-form'; form.style.marginTop = '8px';
-    const inputs = [];
-    (h.fields || []).forEach(f => { const fi = fieldEl(f, ''); form.appendChild(fi.el); inputs.push(fi); });
-    if (!(h.fields || []).length) { const hint = document.createElement('div'); hint.className = 'trend-empty'; hint.textContent = '该框架是自由打卡，无自定义字段'; form.appendChild(hint); }
+    const lab = document.createElement('label'); lab.textContent = '这次做了什么 / 体会到什么（可留空）'; form.appendChild(lab);
+    const ta = document.createElement('textarea'); ta.className = 'refl'; ta.rows = 3; ta.placeholder = '手写一句反思，例如：今天用「先懂生意再下注」看了一家公司的年报'; form.appendChild(ta);
     const submit = document.createElement('button'); submit.className = 'btn-primary'; submit.textContent = '提交打卡';
     submit.addEventListener('click', async () => {
-      const value = {}; (h.fields || []).forEach((f, i) => { value[f.key] = inputs[i].getValue(); });
+      const value = { note: ta.value.trim() };
       await postCheckin(h.id, new Date().toISOString(), value);
       renderMethod(); toast('✓ 已打卡');
     });
@@ -612,6 +614,12 @@
     });
     colWrap.appendChild(colRow); box.appendChild(colWrap);
 
+    // 一句话简介（显示在卡片上，让卡片当教学工具）
+    const descWrap = document.createElement('div'); descWrap.className = 'habit-form';
+    descWrap.innerHTML = '<label>一句话简介（这张卡片教什么 / 核心理念，显示在卡片上）</label>';
+    const descInp = document.createElement('input'); descInp.type = 'text'; descInp.value = data.desc || ''; descInp.placeholder = '如：先看懂生意模式，再下注'; descWrap.appendChild(descInp);
+    box.appendChild(descWrap);
+
     // 字段编辑器
     const fWrap = document.createElement('div'); fWrap.className = 'habit-form';
     fWrap.innerHTML = '<label>字段（点输入框可直接改名 · 可增删）</label>';
@@ -658,8 +666,13 @@
         if (type === 'select') { const opts = (opt.value || '').split(',').map(s => s.trim()).filter(Boolean); fld.options = opts.length ? opts : ['选项1']; }
         fields.push(fld);
       });
-      await upsertHabit({ name, icon: curIcon, color: curColor, type: 'pick', target: null, fields }, habit ? habit.id : null);
-      overlay.remove(); renderMethod(); toast(isEdit ? '✓ 已保存' : '✓ 已创建');
+      const desc = descInp.value.trim();
+      try {
+        await upsertHabit({ name, icon: curIcon, color: curColor, type: 'pick', target: null, fields, desc }, habit ? habit.id : null);
+        overlay.remove(); renderMethod(); toast(isEdit ? '✓ 已保存' : '✓ 已创建');
+      } catch (e) {
+        toast('保存失败：请先在 Supabase 给 habits 表加 desc 列（见对话里的 SQL）');
+      }
     });
     const cancel = document.createElement('button'); cancel.className = 'btn-ghost'; cancel.textContent = '取消';
     cancel.addEventListener('click', () => overlay.remove());

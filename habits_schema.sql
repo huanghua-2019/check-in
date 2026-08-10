@@ -37,3 +37,7 @@ create policy "anon_all"
   on checkins for all
   to anon
   using (true) with check (true);
+
+-- 后续扩展列（幂等，可重复执行）：archived 归档标记 + desc 卡片一句话简介
+alter table habits add column if not exists archived boolean default false;
+alter table habits add column if not exists desc text;
