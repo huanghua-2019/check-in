@@ -577,7 +577,7 @@
   /* ---------- 习惯新建 / 编辑 弹层 ---------- */
   function openHabitForm(habit) {
     const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
-    const box = document.createElement('div'); box.className = 'modal';
+    const box = document.createElement('div'); box.className = 'edit-modal';
     const isEdit = !!habit;
     const data = habit || { name: '', icon: ICONS[0], color: PALETTE[0], fields: [] };
     box.innerHTML = '<div class="modal-t">' + (isEdit ? '编辑框架' : '新建框架') + '</div>';
