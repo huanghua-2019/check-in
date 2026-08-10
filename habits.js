@@ -467,14 +467,14 @@
     const root = document.getElementById('method-list'); if (!root) return;
     root.innerHTML = '';
 
-    // 新建方法按钮
-    const addBtn = document.createElement('button'); addBtn.className = 'btn-add'; addBtn.textContent = '＋ 新建方法';
+    // 新建框架按钮
+    const addBtn = document.createElement('button'); addBtn.className = 'btn-add'; addBtn.textContent = '＋ 新建框架';
     addBtn.addEventListener('click', () => openHabitForm(null));
     root.appendChild(addBtn);
 
     const list = methodHabits();
     if (!list.length) {
-      const e = document.createElement('div'); e.className = 'trend-empty'; e.textContent = '还没有方法，点上方「＋ 新建方法」添加一个';
+      const e = document.createElement('div'); e.className = 'trend-empty'; e.textContent = '还没有框架，点上方「＋ 新建框架」添加一个';
       root.appendChild(e);
     }
     list.forEach(h => root.appendChild(methodCard(h)));
@@ -561,7 +561,7 @@
     const form = document.createElement('div'); form.className = 'habit-form'; form.style.marginTop = '8px';
     const inputs = [];
     (h.fields || []).forEach(f => { const fi = fieldEl(f, ''); form.appendChild(fi.el); inputs.push(fi); });
-    if (!(h.fields || []).length) { const hint = document.createElement('div'); hint.className = 'trend-empty'; hint.textContent = '该方法是自由打卡，无自定义字段'; form.appendChild(hint); }
+    if (!(h.fields || []).length) { const hint = document.createElement('div'); hint.className = 'trend-empty'; hint.textContent = '该框架是自由打卡，无自定义字段'; form.appendChild(hint); }
     const submit = document.createElement('button'); submit.className = 'btn-primary'; submit.textContent = '提交打卡';
     submit.addEventListener('click', async () => {
       const value = {}; (h.fields || []).forEach((f, i) => { value[f.key] = inputs[i].getValue(); });
@@ -580,7 +580,7 @@
     const box = document.createElement('div'); box.className = 'modal';
     const isEdit = !!habit;
     const data = habit || { name: '', icon: ICONS[0], color: PALETTE[0], fields: [] };
-    box.innerHTML = '<div class="modal-t">' + (isEdit ? '编辑方法' : '新建方法') + '</div>';
+    box.innerHTML = '<div class="modal-t">' + (isEdit ? '编辑框架' : '新建框架') + '</div>';
 
     // 名称
     const nameWrap = document.createElement('div'); nameWrap.className = 'habit-form';
