@@ -507,8 +507,12 @@ body.has-bt .menu-btn,body.has-bt #menuBtn{top:66px}
 /* ===== 方法：卡片 / 操作 / 记录 / 归档 ===== */
 .btn-add{display:block;width:calc(100% - 24px);margin:12px;padding:12px;background:var(--brand-soft);border:1px dashed var(--brand);border-radius:var(--radius-lg);color:var(--brand);font:inherit;font-weight:700;font-size:14px;cursor:pointer}
 .btn-add:hover{background:#f0e6cf}
-.method-card .m-stats{display:flex;gap:12px;margin-top:8px;font-size:12px;color:var(--ink-2)}
-.method-card .m-stats span{background:var(--bg-2);border-radius:8px;padding:3px 9px}
+.method-card .m-level{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--ink-2)}
+.method-card .lv-badge{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:2px 11px;line-height:1.5}
+.method-card .lv-badge.lv0{background:#ececec;color:#9a9a9a;border:1px solid #d8d8d8}
+.method-card .lv-badge.lv1{background:rgba(184,134,27,.14);color:#b8861b;border:1px solid #b8861b}
+.method-card .lv-badge.lv2{background:rgba(47,158,68,.14);color:#2f9e44;border:1px solid #2f9e44}
+.method-card .lv-sub{color:var(--ink-2)}
 .method-card .m-today{font-size:13px;color:var(--ink-2);margin-top:6px;line-height:1.4}
 .method-card .m-ops{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .method-card .m-ops .btn-primary,.method-card .m-ops .btn-ghost{margin-top:0;flex:0 0 auto}

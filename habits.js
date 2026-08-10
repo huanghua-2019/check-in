@@ -205,6 +205,14 @@
   function methodHabits() { return habits.filter(h => h.key !== 'sleep' && !h.archived); }
   function archivedHabits() { return habits.filter(h => h.key !== 'sleep' && h.archived); }
 
+  // 熟练度（参考词汇打卡：未用 / 偶尔 / 熟练，按累计实践次数自动判定）
+  function methodLevel(key) {
+    const n = allOf(key).length;
+    if (n === 0) return { label: '未用', cls: 'lv0' };
+    if (n <= 2) return { label: '偶尔', cls: 'lv1' };
+    return { label: '熟练', cls: 'lv2' };
+  }
+
   function recsOf(key) { return allOf(key).slice().sort((a, b) => new Date(a.ts) - new Date(b.ts)); }
 
   function weekCount(key) {
@@ -495,8 +503,9 @@
     let html = '<div class="hc-top"><div class="hc-ico">' + h.icon + '</div><div class="hc-name">' + h.name + '</div>';
     html += today ? '<span class="ok-badge">今日已打卡</span>' : '<span class="hc-status">今日未打卡</span>';
     html += '</div>';
-    // 统计行
-    html += '<div class="m-stats"><span>累计 ' + allOf(h.key).length + '</span><span>本周 ' + weekCount(h.key) + '</span><span>连续 ' + streakOf(h.key) + ' 天</span></div>';
+    // 熟练度（替代原来的 累计/本周/连续 统计）
+    const lv = methodLevel(h.key);
+    html += '<div class="m-level"><span class="lv-badge ' + lv.cls + '">' + lv.label + '</span><span class="lv-sub">已实践 ' + allOf(h.key).length + ' 次</span></div>';
     if (today) html += '<div class="m-today">' + (fieldSummary(h, today.value) || '已打卡') + '</div>';
     card.innerHTML = html;
 
