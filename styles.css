@@ -435,6 +435,7 @@ main{padding:0 12px 24px;flex:1}
 .btab:hover{color:#fff}
 .btab.active{color:#fff;border-bottom-color:var(--brand)}
 body.has-bt #sidebar{top:52px}
+body.has-bt .sidebar{top:52px}
 body.has-bt .main-wrap{padding-top:52px}
 body.has-bt .topbar{top:52px}
 body.has-bt .menu-btn,body.has-bt #menuBtn{top:66px}

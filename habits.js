@@ -53,6 +53,8 @@
   let checkins = [];
   const localLogs = loadLocal();
   let sleepRange = 30; // 趋势图范围：7 / 30
+  let sleepSub = 'home';   // 早睡子视图：home(总览) / checkin(打卡)
+  let methodSub = 'home';  // 框架子视图：home(总览) / checkin(框架列表)
 
   function loadLocal() { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch (e) { return {}; } }
   function saveLocal() { localStorage.setItem(LS, JSON.stringify(localLogs)); }
@@ -175,6 +177,7 @@
   /* ---------- 模块切换 ---------- */
   const MODS = ['writing', 'sleep', 'method'];
   function showMod(m) {
+    closeSb();
     MODS.forEach(x => { const el = document.getElementById('mod-' + x); if (el) el.hidden = (x !== m); });
     document.querySelectorAll('.btab').forEach(b => b.classList.toggle('active', b.dataset.mod === m));
     try { localStorage.setItem('vocab_bigmod', m); } catch (e) {}
@@ -182,6 +185,19 @@
     if (m === 'method') renderMethod();
   }
   document.querySelectorAll('.btab').forEach(b => b.addEventListener('click', () => showMod(b.dataset.mod)));
+
+  // 早睡 / 框架 两个子模块各自的左侧抽屉（菜单/遮罩/关闭）
+  function wireSidebars() {
+    closeSb();
+    const pairs = [['sleepMenu', 'sleepBackdrop', 'sleepClose'], ['methodMenu', 'methodBackdrop', 'methodClose']];
+    for (const [m, b, c] of pairs) {
+      const me = document.getElementById(m), bd = document.getElementById(b), ce = document.getElementById(c);
+      if (me) me.addEventListener('click', () => document.body.classList.add('sb-open'));
+      if (bd) bd.addEventListener('click', closeSb);
+      if (ce) ce.addEventListener('click', closeSb);
+    }
+  }
+  wireSidebars();
 
   /* ---------- 字段输入控件 ---------- */
   function fieldEl(f, val) {
@@ -408,8 +424,13 @@
   }
 
   function renderSleep() {
+    renderSleepSidebar();
     const root = document.getElementById('sleep-list'); if (!root) return;
     root.innerHTML = '';
+    if (sleepSub === 'home') buildSleepHome(root); else buildSleepCheckin(root);
+  }
+
+  function buildSleepCheckin(root) {
     const h = getHabit('sleep');
     const today = todaysOf('sleep')[0];
 
@@ -457,14 +478,50 @@
     // 统计卡
     const st = sleepStats();
     if (st) root.appendChild(buildStatsCard(st, true));
-    // 月历
-    root.appendChild(buildHeatmap());
     // 趋势
     root.appendChild(buildTrend(recsOf('sleep')));
     // 历史
     root.appendChild(buildHistory(recsOf('sleep'), 'sleep'));
 
     if (!useCloud) { const tag = document.createElement('div'); tag.style.cssText = 'font-size:11px;color:#999;margin-top:6px'; tag.textContent = '（本地模式：去 Supabase 跑 habits_schema.sql 后自动转云端）'; root.appendChild(tag); }
+  }
+
+  function buildSleepHome(root) {
+    const st = sleepStats();
+    const dash = document.createElement('div'); dash.className = 'dash';
+    if (st) {
+      const items = [
+        { n: minToHHMM(st.avg % 1440), l: '平均入睡' },
+        { n: Math.round(st.rate * 100) + '%', l: '达标率' },
+        { n: st.streakHit, l: '连续达标' },
+        { n: st.total, l: '累计打卡' }
+      ];
+      dash.appendChild(buildHero(items, Math.round(st.rate * 100), '达标率', 'rg-sleep'));
+    } else {
+      dash.appendChild(emptyHome('🌙', '还没有早睡打卡记录', '去「打卡」记录一次，这里会显示平均入睡与达标率'));
+    }
+    // 本月热力（总览核心）
+    dash.appendChild(buildHeatmap());
+    // 最近一次
+    const recs = recsOf('sleep');
+    if (recs.length) {
+      const last = recs[recs.length - 1];
+      const sec = document.createElement('section'); sec.className = 'dash-section';
+      sec.innerHTML = '<h2 class="dash-h">最近一次</h2>';
+      const card = document.createElement('div'); card.className = 'dash-card'; card.style.setProperty('--tc', '#3a6ea5');
+      card.innerHTML = '<div class="dc-top"><span class="dc-ico">🌙</span><span class="dc-name">' + localDayOf(last.ts) + '</span><span class="dc-num">' + ((last.value && last.value.sleep_time) || '—') + '</span></div>' +
+        '<div class="dc-sub">' + ((last.value && last.value.on_target) ? '🌟 达标' : '未达标') + '</div>';
+      sec.appendChild(card); dash.appendChild(sec);
+    }
+    root.appendChild(dash);
+  }
+
+  function renderSleepSidebar() {
+    const el = document.getElementById('sleepTabs'); if (!el) return;
+    el.innerHTML = '';
+    el.appendChild(sideTab('🏠', '首页', sleepSub === 'home', '#3a6ea5', () => { sleepSub = 'home'; renderSleep(); closeSb(); }));
+    const sep = document.createElement('div'); sep.className = 'sb-sep'; el.appendChild(sep);
+    el.appendChild(sideTab('🌙', '打卡', sleepSub === 'checkin', '#3a6ea5', () => { sleepSub = 'checkin'; renderSleep(); closeSb(); }));
   }
 
   /* ---------- 方法模块（全动态） ---------- */
@@ -474,9 +531,13 @@
   }
 
   function renderMethod() {
+    renderMethodSidebar();
     const root = document.getElementById('method-list'); if (!root) return;
     root.innerHTML = '';
+    if (methodSub === 'home') buildMethodHome(root); else buildMethodCheckin(root);
+  }
 
+  function buildMethodCheckin(root) {
     // 新建框架按钮
     const addBtn = document.createElement('button'); addBtn.className = 'btn-add'; addBtn.textContent = '＋ 新建框架';
     addBtn.addEventListener('click', () => openHabitForm(null));
@@ -505,6 +566,117 @@
       root.appendChild(box);
     }
     if (!useCloud) { const tag = document.createElement('div'); tag.style.cssText = 'font-size:11px;color:#999;margin-top:6px'; tag.textContent = '（本地模式：新建/编辑不可用，去 Supabase 跑 habits_schema.sql 后自动转云端）'; root.appendChild(tag); }
+  }
+
+  function buildMethodHome(root) {
+    const list = methodHabits();
+    let totalPractices = 0, todayPractices = 0, m0 = 0, m1 = 0, m2 = 0;
+    const total = list.length;
+    const rows = list.map(h => {
+      const recs = allOf(h.key);
+      const n = recs.length; totalPractices += n;
+      const lv = methodLevel(h.key);
+      if (lv.label === '未用') m0++; else if (lv.label === '偶尔') m1++; else m2++;
+      const todayN = recs.filter(r => localDayOf(r.ts) === todayKey()).length; todayPractices += todayN;
+      return { h, n, lv, todayN };
+    });
+    const dash = document.createElement('div'); dash.className = 'dash';
+    if (total) {
+      const items = [
+        { n: total, l: '框架总数' },
+        { n: totalPractices, l: '已实践次数' },
+        { n: todayPractices, l: '今日实践' },
+        { n: m2, l: '熟练框架' }
+      ];
+      const coverage = Math.round((total - m0) / total * 100);
+      dash.appendChild(buildHero(items, coverage, '覆盖度', 'rg-method'));
+    } else {
+      dash.appendChild(emptyHome('💡', '还没有框架', '去「框架」点「＋ 新建框架」添加一个'));
+    }
+    // 框架实践排行
+    const sec = document.createElement('section'); sec.className = 'dash-section';
+    sec.innerHTML = '<h2 class="dash-h">框架实践排行</h2>';
+    const grid = document.createElement('div'); grid.className = 'dash-grid';
+    const maxN = Math.max(1, ...rows.map(r => r.n));
+    for (const r of rows) {
+      const pct = Math.round(r.n / maxN * 100);
+      const card = document.createElement('button'); card.type = 'button'; card.className = 'dash-card'; card.style.setProperty('--tc', r.h.color);
+      card.innerHTML = '<div class="dc-top"><span class="dc-ico">' + r.h.icon + '</span><span class="dc-name">' + esc(r.h.name) + '</span><span class="dc-num">' + r.n + '</span></div>' +
+        '<div class="dc-bar"><div class="dc-fill" style="width:' + pct + '%"></div></div>' +
+        '<div class="dc-sub">已实践 ' + r.n + ' 次 · ' + r.lv.label + '</div>';
+      card.addEventListener('click', () => { methodSub = 'checkin'; renderMethod(); closeSb(); });
+      grid.appendChild(card);
+    }
+    sec.appendChild(grid); dash.appendChild(sec);
+    // 熟练度分布
+    dash.appendChild(buildFrameMastery(m0, m1, m2));
+    root.appendChild(dash);
+  }
+
+  function buildFrameMastery(m0, m1, m2) {
+    const total = m0 + m1 + m2 || 1;
+    const p = [m0, m1, m2].map(x => Math.round(x / total * 100));
+    const sec = document.createElement('section'); sec.className = 'dash-section';
+    sec.innerHTML = '<h2 class="dash-h">熟练度分布</h2>';
+    const wrap = document.createElement('div'); wrap.className = 'mast-wrap';
+    const items = [
+      { label: '未用', n: m0, pct: p[0], cls: 'm0' },
+      { label: '偶尔', n: m1, pct: p[1], cls: 'm1' },
+      { label: '熟练', n: m2, pct: p[2], cls: 'm2' }
+    ];
+    for (const it of items) {
+      const row = document.createElement('div'); row.className = 'mast-row';
+      row.innerHTML = '<div class="mast-label">' + it.label + '</div><div class="mast-bar"><div class="mast-fill ' + it.cls + '" style="width:' + it.pct + '%"></div></div><div class="mast-num">' + it.n + ' <small>' + it.pct + '%</small></div>';
+      wrap.appendChild(row);
+    }
+    sec.appendChild(wrap); return sec;
+  }
+
+  function renderMethodSidebar() {
+    const el = document.getElementById('methodTabs'); if (!el) return;
+    el.innerHTML = '';
+    el.appendChild(sideTab('🏠', '首页', methodSub === 'home', '#b8861b', () => { methodSub = 'home'; renderMethod(); closeSb(); }));
+    const sep = document.createElement('div'); sep.className = 'sb-sep'; el.appendChild(sep);
+    el.appendChild(sideTab('💡', '框架', methodSub === 'checkin', '#b8861b', () => { methodSub = 'checkin'; renderMethod(); closeSb(); }));
+  }
+
+  /* ---------- 通用：首页仪表盘构件 ---------- */
+  function closeSb() { document.body.classList.remove('sb-open'); }
+  function sideTab(ico, name, active, color, onClick) {
+    const b = document.createElement('button');
+    b.className = 'tab' + (active ? ' active' : '');
+    if (color) b.style.setProperty('--tc', color);
+    b.innerHTML = '<span class="t-ico">' + ico + '</span><span class="t-name">' + name + '</span>';
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  function buildHero(items, pct, caption, gid) {
+    const hero = document.createElement('section'); hero.className = 'dash-hero';
+    const R = 54, C = 2 * Math.PI * R, off = C * (1 - pct / 100);
+    const ring = document.createElement('div'); ring.className = 'ring';
+    ring.innerHTML =
+      '<svg viewBox="0 0 140 140" width="140" height="140">' +
+      '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0%" stop-color="#d4a017"/><stop offset="100%" stop-color="#b8861b"/></linearGradient></defs>' +
+      '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="#e8e0d2" stroke-width="12"/>' +
+      '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="url(#' + gid + ')" stroke-width="12" stroke-linecap="round" ' +
+      'stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 70 70)"/>' +
+      '<text x="70" y="63" text-anchor="middle" class="ring-pct">' + pct + '%</text>' +
+      '<text x="70" y="86" text-anchor="middle" class="ring-cap">' + caption + '</text>' +
+      '</svg>';
+    const stats = document.createElement('div'); stats.className = 'hero-stats';
+    for (const it of items) {
+      const d = document.createElement('div'); d.className = 'hstat';
+      d.innerHTML = '<b>' + it.n + '</b><span>' + it.l + '</span>';
+      stats.appendChild(d);
+    }
+    hero.appendChild(ring); hero.appendChild(stats);
+    return hero;
+  }
+  function emptyHome(ico, title, sub) {
+    const sec = document.createElement('section'); sec.className = 'dash-section';
+    sec.innerHTML = '<div class="empty" style="padding:34px 18px;text-align:center;color:var(--sub);font-size:14px">' + ico + ' ' + title + '<br><small style="opacity:.8">' + sub + '</small></div>';
+    return sec;
   }
 
   function methodCard(h) {

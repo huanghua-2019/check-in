@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>我的底层框架</title>
-<link rel="stylesheet" href="styles.css?v=16">
+<link rel="stylesheet" href="styles.css?v=17">
 </head>
 <body class="has-bt">
 <div id="bigTabs" class="big-tabs">
@@ -68,13 +68,33 @@
 </section>
 
 <div id="mod-sleep" class="module" hidden>
-  <div class="mod-page">
-    <div class="mod-head"><h1>🌙 早睡打卡</h1><span class="sub">记录入睡时间 · 00:40 前达标 · 点统计卡可改达标线</span></div>
+  <button class="menu-btn" id="sleepMenu" aria-label="菜单">☰</button>
+  <div class="backdrop" id="sleepBackdrop"></div>
+  <aside class="sidebar" id="sleepSidebar">
+    <div class="sb-head">
+      <span class="sb-logo">🌙</span>
+      <span class="sb-title">早睡打卡</span>
+      <button class="close-btn" id="sleepClose" aria-label="关闭">×</button>
+    </div>
+    <nav class="sb-tabs" id="sleepTabs"></nav>
+  </aside>
+  <div class="main-wrap">
+    <div class="mod-head"><h1>🌙 早睡打卡</h1><span class="sub">记录入睡时间 · 00:40 前达标</span></div>
     <div id="sleep-list"></div>
   </div>
 </div>
 <div id="mod-method" class="module" hidden>
-  <div class="mod-page">
+  <button class="menu-btn" id="methodMenu" aria-label="菜单">☰</button>
+  <div class="backdrop" id="methodBackdrop"></div>
+  <aside class="sidebar" id="methodSidebar">
+    <div class="sb-head">
+      <span class="sb-logo">💡</span>
+      <span class="sb-title">我的底层框架</span>
+      <button class="close-btn" id="methodClose" aria-label="关闭">×</button>
+    </div>
+    <nav class="sb-tabs" id="methodTabs"></nav>
+  </aside>
+  <div class="main-wrap">
     <div class="mod-head"><h1>💡 我的底层框架</h1><span class="sub">可自定义添加 · 点击「＋ 新建框架」随时建一个</span></div>
     <div id="method-list"></div>
   </div>
@@ -110,6 +130,6 @@
 
 <script src="data.js?v=12"></script>
 <script src="app.js?v=18"></script>
-<script src="habits.js?v=17"></script>
+<script src="habits.js?v=18"></script>
 </body>
 </html>
