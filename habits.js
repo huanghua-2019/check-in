@@ -19,7 +19,14 @@
     { key: 'sleep', name: '早睡打卡', icon: '🌙', color: '#3a6ea5', type: 'timed', target: '00:40',
       fields: [{ key: 'sleep_time', label: '入睡时间', type: 'time' }] },
     { key: 'buffett', name: '巴菲特阅读手段', icon: '💎', color: '#8a5cc4', type: 'pick', target: null, fields: [] },
-    { key: 'xu', name: '徐新研究三原则', icon: '🔍', color: '#2f8f9d', type: 'pick', target: null, fields: [] }
+    { key: 'xu', name: '徐新研究三原则', icon: '🔍', color: '#2f8f9d', type: 'pick', target: null, fields: [] },
+    { key: 'covey1', name: '积极主动', icon: '🌱', color: '#b8861b', type: 'pick', target: null, fields: [] },
+    { key: 'covey2', name: '以终为始', icon: '🎯', color: '#c08a1e', type: 'pick', target: null, fields: [] },
+    { key: 'covey3', name: '要事第一', icon: '⏰', color: '#a87d18', type: 'pick', target: null, fields: [] },
+    { key: 'covey4', name: '双赢思维', icon: '🤝', color: '#9c7220', type: 'pick', target: null, fields: [] },
+    { key: 'covey5', name: '知彼解己', icon: '👂', color: '#cd9a2e', type: 'pick', target: null, fields: [] },
+    { key: 'covey6', name: '统合综效', icon: '🧩', color: '#8f6a14', type: 'pick', target: null, fields: [] },
+    { key: 'covey7', name: '不断更新', icon: '🔄', color: '#d4a838', type: 'pick', target: null, fields: [] }
   ];
 
   const ICONS = ['💎','🔍','📚','🧠','💡','🎯','🔬','📝','⚡','🌟','🧩','🚀','🔭','💼','📊','🗂️','🌱','🧭'];
@@ -29,7 +36,14 @@
   // 内置框架卡片的静态一句话简介（直接写在网页上，不进数据库，避免 reserved keyword 问题）
   const FRAME_DESC = {
     buffett: '每年海量阅读年报、财报与传记，用多学科思维模型看懂生意再下注。',
-    xu: '靠一手消费者 / 专家访谈与赛道研判做长期投资，重仓真正看懂的生意。'
+    xu: '靠一手消费者 / 专家访谈与赛道研判做长期投资，重仓真正看懂的生意。',
+    covey1: '把精力放在影响圈，对自己的选择负责，不怨天尤人。',
+    covey2: '先在脑中想清目标与原则，再以此为依据行动。',
+    covey3: '优先做重要不紧急的事，以原则而非情绪安排时间。',
+    covey4: '寻求互利的解决方案，把人际看作合作而非零和。',
+    covey5: '先真心理解对方，再求被理解，移情倾听优先。',
+    covey6: '尊重差异、取长补短，创造 1+1>2 的第三方案。',
+    covey7: '在身体、精神、智力、社会情感四个维度持续投资自己。'
   };
 
   let useCloud = false;
