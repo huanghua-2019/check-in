@@ -29,7 +29,8 @@
     { key: 'covey7', name: '不断更新', icon: '🔄', color: '#d4a838', type: 'pick', target: null, fields: [] },
     { key: 'concl-first', name: '结论优先', icon: '📌', color: '#c0504d', type: 'pick', target: null, fields: [] },
     { key: 'drawer', name: '抽屉分类', icon: '🗂️', color: '#1f9e8a', type: 'pick', target: null, fields: [] },
-    { key: 'sandwich', name: '三明治回应', icon: '🥪', color: '#6a51a3', type: 'pick', target: null, fields: [] }
+    { key: 'sandwich', name: '三明治回应', icon: '🥪', color: '#6a51a3', type: 'pick', target: null, fields: [] },
+    { key: 'disagree', name: '表达不同意见', icon: '🤝', color: '#2f7ec4', type: 'pick', target: null, fields: [] }
   ];
 
   const ICONS = ['💎','🔍','📚','🧠','💡','🎯','🔬','📝','⚡','🌟','🧩','🚀','🔭','💼','📊','🗂️','🌱','🧭'];
@@ -49,7 +50,8 @@
     covey7: '在身体、精神、智力、社会情感四个维度持续投资自己。',
     'concl-first': '开口先给结论与核心判断，再展开依据，避免铺垫太长让人抓不住重点。',
     'drawer': '把混杂信息按维度拆成互不重叠的"抽屉"，一点一抽屉，避免内容交叉混乱。',
-    'sandwich': '被质疑时先认可对方合理处、再陈述自己的依据、最后回到共识，不急于辩解。'
+    'sandwich': '被质疑时先认可对方合理处、再陈述自己的依据、最后回到共识，不急于辩解。',
+    'disagree': '提不同意见时先肯定对方合理的部分，再引出自己的观点，避免一开口就唱反调。'
   };
 
   let useCloud = false;
