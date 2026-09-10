@@ -26,7 +26,10 @@
     { key: 'covey4', name: '双赢思维', icon: '🤝', color: '#9c7220', type: 'pick', target: null, fields: [] },
     { key: 'covey5', name: '知彼解己', icon: '👂', color: '#cd9a2e', type: 'pick', target: null, fields: [] },
     { key: 'covey6', name: '统合综效', icon: '🧩', color: '#8f6a14', type: 'pick', target: null, fields: [] },
-    { key: 'covey7', name: '不断更新', icon: '🔄', color: '#d4a838', type: 'pick', target: null, fields: [] }
+    { key: 'covey7', name: '不断更新', icon: '🔄', color: '#d4a838', type: 'pick', target: null, fields: [] },
+    { key: 'concl-first', name: '结论优先', icon: '📌', color: '#c0504d', type: 'pick', target: null, fields: [] },
+    { key: 'drawer', name: '抽屉分类', icon: '🗂️', color: '#1f9e8a', type: 'pick', target: null, fields: [] },
+    { key: 'sandwich', name: '三明治回应', icon: '🥪', color: '#6a51a3', type: 'pick', target: null, fields: [] }
   ];
 
   const ICONS = ['💎','🔍','📚','🧠','💡','🎯','🔬','📝','⚡','🌟','🧩','🚀','🔭','💼','📊','🗂️','🌱','🧭'];
@@ -43,7 +46,10 @@
     covey4: '寻求互利的解决方案，把人际看作合作而非零和。',
     covey5: '先真心理解对方，再求被理解，移情倾听优先。',
     covey6: '尊重差异、取长补短，创造 1+1>2 的第三方案。',
-    covey7: '在身体、精神、智力、社会情感四个维度持续投资自己。'
+    covey7: '在身体、精神、智力、社会情感四个维度持续投资自己。',
+    'concl-first': '开口先给结论与核心判断，再展开依据，避免铺垫太长让人抓不住重点。',
+    'drawer': '把混杂信息按维度拆成互不重叠的"抽屉"，一点一抽屉，避免内容交叉混乱。',
+    'sandwich': '被质疑时先认可对方合理处、再陈述自己的依据、最后回到共识，不急于辩解。'
   };
 
   let useCloud = false;
