@@ -29,20 +29,40 @@ CAT_FIX = {
     '🎨 ⚠️ 风险与警示': '⚠️ 风险与警示',
 }
 
-PUNCT = re.compile(r'[，。；、！？：]|……|“|”|『|』|\[|\]')
+# 「XX（现在叫：YY）」是刻意设计的网络新词对照条，必须保留在词汇，不算句式。
+EUPH = re.compile(r'（现在叫[:：]')
+# 句式模板的高精度特征：省略号占位 / 引号开头 / XX·YY·A·B 占位符
+# 注意：不把 " vs " 当句式特征 —— 那类是"概念对比"（如「模糊的正确 vs 精确的错误」），属于词条。
+SENT_MARK = re.compile(r'…|^“|^‘|XX|YY|[\u4e00-\u9fa5]A[，,]')
 
 
 def is_sentence_form(word: str) -> bool:
-    """判断 word 字段是不是"整句/句式模板"而非词。"""
-    if not word:
+    """高精度判断 word 是不是"句式模板"。宁可漏判，不可误判。"""
+    if not word or EUPH.search(word):
         return False
-    if PUNCT.search(word):
-        return True
-    if re.search(r'\s+vs\s+', word):
-        return True
-    if len(word) >= 11:
-        return True
-    return False
+    return bool(SENT_MARK.search(word))
+
+
+# word 字段里混入的机器注释，剥出来还给 syn
+MANGLE_RULES = [
+    (re.compile(r'^(.+?)（同义词[:：](.+?)）$'), 2),
+    (re.compile(r'^(.+?)[：:]近似词[:：](.+)$'), 2),
+]
+
+
+def normalize_word(entry: dict):
+    """把 word 里混入的注释剥离到 syn。返回 (旧word, 新word, 补入的syn) 或 None。"""
+    raw = entry.get('word') or ''
+    for pat, gi in MANGLE_RULES:
+        m = pat.match(raw)
+        if m:
+            new_word, extra = m.group(1), m.group(gi)
+            old_syn = (entry.get('syn') or '').strip()
+            if not old_syn or len(extra) > len(old_syn):
+                entry['syn'] = extra
+            entry['word'] = new_word
+            return raw, new_word, entry['syn']
+    return None
 
 
 def quality_score(entry: dict) -> tuple:
@@ -91,6 +111,14 @@ def main():
     vocab, cats, _ = load(src)
     n0 = len(vocab)
     log = []
+
+    # ---- 0. 剥离 word 字段里混入的机器注释 ----
+    norm_n = 0
+    for e in vocab:
+        r = normalize_word(e)
+        if r:
+            norm_n += 1
+            log.append(f'[字段剥离] id{e["id"]} word「{r[0]}」→「{r[1]}」，注释归还 syn')
 
     # ---- 1. 分类畸名归位 ----
     fixed = 0
@@ -181,6 +209,7 @@ def main():
         print(' ', line)
     print('-' * 70)
     print(f'  删除重复        : {len(drop_ids)} 条')
+    print(f'  字段剥离        : {norm_n} 条')
     print(f'  句式条目归位    : {moved} 条 → {NEW_SENT_CAT}')
     print(f'  畸名分类归位    : {fixed} 条')
     print(f'  案例分类合一    : {case_n} 条 → {CASE_CAT}')
@@ -192,11 +221,24 @@ def main():
     print(f'    syn 与 mean 相同   : {len(syn_eq_mean)} 条')
     print(f'    syn 写成了释义句   : {len(syn_long)} 条')
     print(f'    mean 是纯同义堆砌  : {len(heap)} 条')
+    long_left = [e for e in v if len(e.get('word') or '') >= 8]
+    print(f'    长条目未自动归位   : {len(long_left)} 条（需人工判定，清单见 build/review_long.txt）')
     print('=' * 70)
 
     if not a.apply:
         print('（干跑，未落盘。加 --apply 执行）')
         return 0
+
+    # 输出待人工判定清单，供用户过目
+    rv = src.parent / 'build' / 'review_long.txt'
+    with rv.open('w', encoding='utf-8') as f:
+        f.write(f'# 长条目待人工判定（{len(long_left)} 条）\n')
+        f.write('# 这些条目 word>=8 字但没含句式占位符，可能是：术语群 / 金句 / 字段错位的坏条目\n\n')
+        for e in long_left:
+            f.write(f'id{e["id"]}\t[{e["cat"]}]\t{e["word"]}\n')
+            f.write(f'\tsyn : {e.get("syn","")}\n')
+            f.write(f'\tmean: {e.get("mean","")}\n')
+            f.write(f'\tscene: {(e.get("scene") or "")[:80]}\n\n')
 
     bak = src.parent / 'build' / 'backup' / f'data_preclean_{datetime.now():%Y%m%d_%H%M%S}.js'
     bak.parent.mkdir(parents=True, exist_ok=True)
