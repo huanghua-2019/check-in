@@ -1,182 +1,209 @@
-# Agent 操作手册 · check-in 词库
+# AGENTS.md · check-in 词库
 
-> 本文件供 AI agent 在修改 check-in 词库（尤其是新增/编辑词汇）时直接参考。
-> 所有改动的唯一真源与部署源是 **`D:\我的GitHub\check-in`**（git 仓库，GitHub Pages）。
-> 工作区 `C:\Users\Lenovo\WorkBuddy\*\vocab-checkin` 是**过期平行副本**，一律不碰。
+> 面向 AI coding agent 的项目说明。人类可读，但措辞以「可执行」为准。
+> 本文件修改后无需升缓存号（不参与页面渲染）。
+
+## 项目一句话
+
+静态单页「写作词库打卡」应用。1398 条中文写作词汇/句式/隐喻/金句，按用途分类检索，
+打卡进度存localStorage + Supabase，部署在 GitHub Pages。
+
+- **线上地址**：https://huanghua-2019.github.io/check-in/
+- **唯一真源与部署源**：`D:\我的GitHub\check-in`（git 仓库，分支 `main`，58+ commits）
+- **远端**：`git@github.com:huanghua-2019/check-in.git`
+- **技术栈**：原生 HTML/CSS/JS，零构建、零依赖、零npm。改完即部署。
+- **与 README.md 的分工**：README 是给**人类**看的从0 到 1 搭建教程（如何部署、如何建表）；本文件是给**agent** 看的改动规范（改哪个文件、怎么校验、哪些坑会踩）。改代码读本文件；想理解系统原理读README。
 
 ---
 
-## 0. 铁律（违反必出事故）
+## 铁律（违反必出事故）
 
-1. **只改 `D:\我的GitHub\check-in`**。线上跑的是这个仓库，改错副本线上永远不变。
+1. **只改 `D:\我的GitHub\check-in`**。线上跑的就是这个仓库。改到别处线上永远不变。
+   - `C:\Users\Lenovo\WorkBuddy\*\vocab-checkin` 是**过期平行副本**，一律不碰。
 2. **绝不可跑 `sync.py`**（会把旧版 md 回灌，污染数据）。
-3. **改哪个文件就把 `index.html` 里对应 `?v=` 缓存号 +1**；用户需 **Ctrl/Cmd+Shift+R 强刷**才能看到新数据。
-4. **data.js 铁律：只增条目、绝不重编 id**（打卡进度按 id 存 localStorage）。新词用当前最大 id +1。
-5. **先规划再干活**：任何改动先给简短方案让用户拍板，不要直接动文件反复试错。
-6. **发布走 git 安全序列**（见 §5），用 merge FETCH_HEAD 而非 rebase。
-7. ⚠️ **改分类标签必须逐条读释义判断，禁止用关键词规则批量打标签**。用户原话："你不能瞎分类""不能瞎搞"。历史上已因此出错两次：①按词性关键词把 223 条批量归类，把形容词/副词塞进灵活词；②把「体重达300斤」「确切的体重数值」这类**整句碎片**当成词条分类。**判断不了的一律丢「❓ 待定」分类，不要硬塞。**
+3. **改哪个文件，就把 `index.html` 里对应 `?v=` +1**。用户需 `Ctrl/Cmd+Shift+R` 强刷才生效。
+   - 当前值：`styles.css?v=22`、`data.js?v=25`、`app.js?v=24`、`habits.js?v=20`
+4. **`data.js` 只增条目、绝不重编 id**。打卡进度按 id 存 localStorage，改 id 会丢用户记录。
+   新条目用当前最大 id +1（现为 1920起）。
+5. **先规划再动手**。任何改动先给简短方案让用户拍板，不要闷头改、不要反复试错。
+6. **发布走 git 安全序列**（见「发布」），用 `merge FETCH_HEAD`，**不用 rebase、不用 --force、不跳 hook**。
+7. ⚠️ **改分类标签必须逐条读释义判断，禁止关键词规则批量打标签**。用户原话："你不能瞎分类"。
+   已因此出错两次（把形容词塞进动词类；把整句碎片当词条）。**判断不了的一律丢「❓ 待定」，不要硬塞。**
 
 ---
 
-## 1. 文件结构
+## 架构速览
 
-- `index.html`：入口，含三个缓存号 `data.js?v=N`、`app.js?v=N`、`styles.css?v=N`。
-- `data.js`：词库主数据。结构是**四行**——
-  ```
-  /* build: <ISO时间戳> */
-  window.VOCAB=[...];
-  window.CATEGORIES=[...];
-  window.TOPICS=[...];
-  ```
-  要求：JSON 无空格（紧凑）、每行以 LF 结尾（裸 LF 应为 4 行）、不引入 CRLF 之外的杂散换行。
-- `app.js` / `styles.css`：前端逻辑与样式。
+```
+index.html            入口，含 4 个缓存号
+├─ data.js      (728K) 词库主数据：window.VOCAB / CATEGORIES / TOPICS
+├─ habits.js(48K)  4 张习惯框架卡，独立 IIFE，挂 window.Habits
+├─ app.js        (60K) 全部交互逻辑，单 IIFE
+└─ styles.css    (40K) 护眼米色主题（--brand 金棕 #b8861b）
 
-### VOCAB 条目字段（10 个，键顺序对齐如下）
+*.sql                 Supabase 建表脚本（需手动在 SQL Editor 执行一次）
+build/                历史脚本残留，非运行时依赖
 ```
-{id, tab, tier, use, cat, word, syn, mean, example, scene}
+
+### data.js 结构（**必须保持四行**）
+
 ```
-- `id`：整数，全局唯一，不重排不重编。
-- `tab`：`vocab`/`phr`/`met`/`quote`/`humor`/`cases`/`rule`/`diff`。
-- `tier`：`核心`/`进阶`/`备用`（按重要程度，非掌握程度）。
-- `use`：**数组**，17 类写作用途之一或多个，如 `["🎯 立论判断"]`。
-- `cat`：留档用旧分类字符串（如 `"01-观点与论述"`），前端已不依赖。
-- `word`：词条本身（vocab 为词/短语；phr 为带占位符模板；quote/met 等为原话）。
-- `syn`：同义/近似表达，逗号分隔；可附互链标注「（同类：X、Y）」。
-- `mean`：释义。
-- `example`：完整示范句（无待填空位）或原话。
-- `scene`：使用场景说明。
+/* build: <ISO时间戳> */
+window.VOCAB=[...];
+window.CATEGORIES=[...];
+window.TOPICS=[...];
+```
+
+要求：JSON 紧凑无空格（`separators=(",",":")`）、LF 换行（裸 LF 恰为 4 行）、结尾无多余字符。
+
+### VOCAB 条目（10 字段，键序固定）
+
+| 字段 | 说明 |
+|---|---|
+| `id` | 整数，全局唯一，**永不重编** |
+| `tab` | `vocab`(751) `met`(248) `quote`(165) `phr`(149) `humor`(30) `diff`(44) `cases`(9) `rule`(2) |
+| `tier` | `核心`(479) / `进阶`(688) / `备用`(231)，按重要程度，**非掌握程度** |
+| `use` | 数组，见下方「分类模型」 |
+| `cat` | 留档用旧分类串（如 `01-观点与论述`），前端已不依赖 |
+| `word` | 词条本体。vocab=词；phr=带占位符模板（`……`/`XX`/`A B`）；quote/met=原话 |
+| `syn` | 同义/近似表达，可附「（同类：X、Y）」互链标注 |
+| `mean` | 释义 |
+| `example` | 完整示范句（无空位）或原话 |
+| `scene` | 使用场景 |
+
+### 分类模型（20 个 CATEGORIES，两轴模型）
+
+`use` 数组遵循 **`use[0]`=主归属、`use[1:]`=场景索引** 的约定：
+
+- **主归属（唯一，决定分组统计）**：🔤精准形容词 / 🗣️灵活动词 / ↔️副词连词 / 📐概念指代 / ❓待定
+  以及历史遗留的场景类主归属（🎯立论判断等 15 个场景类中，尚未迁完）。
+- **场景索引（可多个，用于筛选）**：🎯立论判断 🔗论证推理 ⚖️对比转折 📊举证说明 💡打比方 🔍洞察本质 ⚠️警示风险 🏆竞争格局 👥人性心理 🏗️管理组织 💰投资决策 🌿人生修养 🖋️描写刻画 ✍️写作技法 😂幽默调侃
+
+规则：
+- 一条词**只存一份**，点任一场景索引都能调出它，但分组统计只算主归属，**不重复计数**。
+- 前端已按此实现：`useOf()` 取 `use[0]`，`subUses()` 取 `use.slice(1)`。
+- 已知遗留：`💡打比方` 主归属为 0 条（全部被当索引用），不影响筛选。
+
+### TOPICS（11 个主题包）
+
+护城河与竞争优势 / 估值与安全边际 / 能力圈与认知 / 风险与失败 / 周期与宏观 / 竞争与格局 /
+管理与文化 / 现金流与财务 / 心态与长期主义 / 护人与识人 / 写作与表达。
+按 `keys` 关键词匹配，**零维护**——新词只要含keys 中任一关键词即自动归包。
+
+### localStorage 键（勿随意改名，改名=丢用户数据）
+
+| 键 | 内容 |
+|---|---|
+| `vocab_checkin_state_v1` | 打卡记录（count / first_used / last_used / mastery） |
+| `vocab_current_tab_v1` | 当前所在 tab |
+| `vocab_mine_v1` | 我的例句 |
+| `vocab_daily_v1` | 每日统计 |
+| `vocab_sb_config_v1` | Supabase url + anon key |
+| `habit_logs_v1`(habits.js) | 习惯卡日志 |
+
+### Supabase
+
+- 仅用 **anon key** 直连，**禁止嵌入 service_role key**。
+- 建表脚本：`supabase-schema.sql`(打卡) / `writing_log.sql`(我的例句) / `habits_schema.sql`(习惯卡) / `daily_counter.sql`(每日计数)。
+- 表未建时功能降级为纯本地，**不报错**。
 
 ---
 
-## 2. ⚠️ 解析 data.js 的唯一正确方式（血泪教训）
+## 常用命令
 
-**绝不手算偏移量！** 字符串 `window.VOCAB=[` 实际是 **14 个字符**（`window.VOCAB=` 13 + `[` 1）。
-用 `+12` 会把定位点落在 `=` 上，切片头变成 `=[{...}`，JSON 永远解析失败，进而误判"文件坏了"。
+```bash
+# 解析 data.js（唯一正确方式，见下节）
+python -c "import re,json;src=open(r'D:\我的GitHub\check-in\data.js',encoding='utf-8').read();arr=json.loads(re.search(r'window\.VOCAB=(\[.*\]);\nwindow\.CATEGORIES',src,re.S).group(1));print(len(arr))"
 
-✅ **正确做法：用正则定位数组首尾，全程不碰手算偏移。**
+# 语法检查
+"C:\Users\Lenovo\.workbuddy\binaries\node\versions\22.22.2-6\node.exe" --check app.js
+
+# 查看状态
+git status --short && git log --oneline -3
+
+# 查当前缓存号
+grep -n "?v=" index.html
+```
+
+---
+
+## ⚠️ 解析 data.js 的唯一正确方式
+
+**绝不手算偏移量。** `window.VOCAB=[` 是 **14 个字符**（`window.VOCAB=` 13 + `[` 1）。
+用 `+12` 会把定位点落在 `=` 上，切片变成 `=[{...}]`，JSON 永远解析失败，
+进而**误判"文件坏了"**——历史上因此白翻一整轮 git 历史。
 
 ```python
 import re, json
-P = r"D:\我的GitHub\check-in\data.js"
-src = open(P, encoding="utf-8").read()
-
-# 贪婪匹配到 '];\nwindow.CATEGORIES' 之前——这是唯一稳妥的切法
+src = open(r"D:\我的GitHub\check-in\data.js", encoding="utf-8").read()
 m = re.search(r"window\.VOCAB=(\[.*\]);\nwindow\.CATEGORIES", src, re.S)
 assert m, "未找到 VOCAB 数组"
-arr = json.loads(m.group(1))          # ← 先确认能解析，再动
+arr = json.loads(m.group(1))          # 先确认能解析，再动
 ```
 
-其它切片写法（`src.index("window.VOCAB=[")+12`、`.find("]")` 等）都栽过跟头，**一律不用**。
-
-### 校验"文件是否损坏"也用同一正则
-不要自己 `src[s:e]` 切片——s/e 算错就误报。直接跑上面的 `m = re.search(...)` 看是否 `assert` 通过。
+写回时用 `m.start(1)` / `m.end(1)` 定位，不要手算。
+所有改动都要**写回后二次校验**（见「改动校验清单」）。
 
 ---
 
-## 3. 新增词汇标准流程（照抄即可）
-
-以"新增一条 vocab 词条"为例：
+## 新增词条标准流程
 
 ```python
-import re, json
+import re, json, datetime
 P = r"D:\我的GitHub\check-in\data.js"
 src = open(P, encoding="utf-8").read()
-
 m = re.search(r"window\.VOCAB=(\[.*\]);\nwindow\.CATEGORIES", src, re.S)
 arr = json.loads(m.group(1))
-base = len(arr)                        # 记下基线条数（如 1362）
+base = len(arr)
+max_id = max(w["id"] for w in arr)
 
-# 找最大 id
-max_id = max(w.get("id", 0) for w in arr)
-new_id = max_id + 1
-
-# 追加新条目（字段顺序、键名严格对齐现有格式）
 arr.append({
-  "id": new_id,
-  "tab": "vocab",
-  "tier": "进阶",                       # 或 核心/备用
-  "use": ["🎯 立论判断"],               # 按实际用途填
+  "id": max_id + 1, "tab": "vocab", "tier": "进阶",
+  "use": ["🎯 立论判断"],           # [主归属, ...场景索引]
   "cat": "01-观点与论述",
-  "word": "新词",
-  "syn": "近义1、近义2",
-  "mean": "释义……",
-  "example": "完整示范句……",
-  "scene": "使用场景说明……"
+  "word": "新词", "syn": "近义1、近义2",
+  "mean": "释义……", "example": "完整示范句……", "scene": "使用场景……",
 })
 
-# 如需互链：给同类词条的 syn 末尾追加标注
-for tid in (59, 122):                  # 例如「提到」「指出」
-    w = next(x for x in arr if x["id"] == tid)
-    if "（同类：新词）" not in w["syn"]:
-        w["syn"] = w["syn"] + "（同类：新词）"
-
-# 原格式写回（保留 build 行与 CATEGORIES/TOPICS 原样）
-out = src[:m.start(1)] + json.dumps(arr, ensure_ascii=False, separators=(",", ":")) + src[m.end(1):]
+ts = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
+out = re.sub(r"/\* build: [^*]* \*/", "/* build: %s */" % ts, src, count=1)
+out = out[:m.start(1)] + json.dumps(arr, ensure_ascii=False, separators=(",", ":")) + src[m.end(1):]
 open(P, "w", encoding="utf-8").write(out)
+```
 
-# ===== 写回后二次校验（必须跑）=====
+改 `CATEGORIES` 用同样的正则 `window\.CATEGORIES=(\[.*?\]);\nwindow\.TOPICS`。
+
+---
+
+## 改动校验清单
+
+写回后**必须**全跑一遍：
+
+```python
 src2 = open(P, encoding="utf-8").read()
 m2 = re.search(r"window\.VOCAB=(\[.*\]);\nwindow\.CATEGORIES", src2, re.S)
 arr2 = json.loads(m2.group(1))
-assert len(arr2) == base + 1, f"条数异常：{len(arr2)}"
-assert any(w["id"] == new_id for w in arr2), "新词未写入"
+cats = json.loads(re.search(r"window\.CATEGORIES=(\[.*?\]);\nwindow\.TOPICS", src2, re.S).group(1))
+
+assert len(arr2) == base + N              # 条数符合预期
+assert len({w["id"] for w in arr2}) == len(arr2)          # id 唯一
 req = {"id","tab","tier","use","cat","word","syn","mean","example","scene"}
-bad = [w["id"] for w in arr2 if set(w) != req]
-assert not bad, f"字段不完全一致：{bad}"
-print("✅ 写回成功，条目数", len(arr2))
+assert not [w["id"] for w in arr2 if set(w) != req]        # 字段完整
+assert not [w["id"] for w in arr2 if any(x not in cats for x in w["use"])]  # use 合法
+assert "];\nwindow.CATEGORIES" in src2# 结尾分隔符完好
+assert src2.count("\n") - src2.count("\r\n") == 4# 裸 LF 恰为 4
 ```
 
-### 批量新增
-同上，循环 `arr.append(...)` 多条即可，`base+1` 改为 `base+N`。
+改 `app.js` 后额外跑 `node --check app.js`。
 
 ---
 
-## 4. 缓存号与发布
+## 分类标签自查（改use 前必做）
 
-新增/改 data.js 后：**只升 `data.js?v=`**（app.js、styles.css 没动就不升）。
+批量打/改分类前**必须**先自查三步，否则会被判定为"瞎分类"。
 
-`index.html` 里把：
-```html
-<script src="data.js?v=21"></script>
-```
-改为 `?v=22`（当前值见文件，+1 即可）。
+**① 全量导出人工过一遍**——至少读一遍 `word + mean`，确认词性与释义和所挂分类一致：
 
----
-
-## 5. Git 安全序列（发布）
-
-```bash
-cd D:\我的GitHub\check-in
-git add data.js index.html
-git commit -m "feat(vocab): 新增「XX」词条(id NNNN)，与「YY」互链"
-git fetch origin
-git merge FETCH_HEAD --no-edit
-git push
-```
-
-**不要用 `git rebase`、`git push --force`、跳过 hook。**
-
----
-
-## 6. 常见坑速查
-
-| 现象 | 真相 | 解法 |
-|---|---|---|
-| `json.loads` 报 `Extra data` / `Expecting value` | 几乎都是**自己切片偏移算错**，不是文件坏 | 改用 §2 正则，不手算偏移 |
-| 误以为"文件坏了"去翻 git 历史回滚 | 文件其实完好，越修越乱 | 先跑 §2 正则确认能解析再动手 |
-| 改完线上没变 | 改的是工作区过期副本 vocab-checkin | 改 `D:\我的GitHub\check-in` |
-| 改完强刷仍没变 | 漏升缓存号 / 改错文件 | 升对应 `?v=`，确认改的是真仓库 |
-| 盲区/用途维度点开为空 | 用途天然跨形式（vocab 外也有），不能落单 tab | 跨形式入口走"取用台"，勿写死 `currentTab='vocab'` |
-| 句式/例句加粗没生效 | 加粗逻辑改在详情页/取用台，列表卡片用的是 `word` 字段 | 确认加粗渲染点覆盖用户所指位置 |
-| 分类打完用户说"瞎分类" | 用关键词规则批量打标签，没逐条读释义 | 见 §8 分类自查三步，先自查再交付 |
-
----
-
-## 8. 分类标签自查（改 use 前必做）
-
-批量给条目打/改分类标签前，**必须**先跑一遍下面三步自查，否则会被用户判定为"瞎分类"。
-
-### 8.1 全量导出人工过一遍
 ```bash
 python -c "
 import re,json
@@ -186,32 +213,65 @@ for w in sorted(arr,key=lambda x:x['id']):
     print(w['use'][0],'|',w['word'][:20],'|',(w.get('mean') or '')[:40])
 "
 ```
-至少读一遍 `word + mean`，确认「词性" 和释义"与所挂分类一致。
 
-### 8.2 机械筛出可疑项（先捞出来再逐条判）
+**② 机械筛可疑项**：
+
 ```python
-# 判据1：word 含分隔符 / 斜杠 / 顿号 / 长句 → 多半是碎片或多词拼接
-if any(c in word for c in "/、，）：") or len(word) > 5
-# 判据2：释义与 word 同义改写（信息量为零，如「无限」的释义是「无限」）
-if len(mean) <= 6 and (word in mean or mean in word)
-# 判据3：释义开头词性与所挂分类矛盾（如"副词…"却挂在灵活词）
-if mean.startswith(("名词","形容词","副词")) and 挂的是"灵活词"
+if any(c in word for c in "/、，）：") or len(word) > 5: ...        # 碎片或多词拼接
+if len(mean) <= 6 and (word in mean or mean in word): ...        # 释义同义改写，信息量为零
+if mean.startswith(("名词","形容词","副词")) and 挂的是"灵活词": ...  # 词性与分类矛盾
 ```
-**注意**：判据2/3 命中的不一定删，可能只是释义写得敷衍——要读 example 判断。
 
-### 8.3 处理原则
+**③ 处理原则**：
+
 | 问题类型 | 处理 |
 |---|---|
 | 整句/碎片/与词库无关的垃圾 | 直接删 |
-| 词性错位（形容词挂在动词类） | 按真实词性改挂 |
-| 概念/术语误挂在形容词类 | 改挂「📐 概念指代」 |
+| 词性错位（形容词挂动词类） | 按真实词性改挂 |
+| 概念/术语误挂形容词类 | 改挂「📐 概念指代」 |
 | 拿不准 / 多词拼接 / 释义残缺 | 移入「❓ 待定」，**不硬分类** |
 | 只是释义写得敷衍（词本身是好的） | 保留原分类，提示用户补释义 |
 
+判据②③命中不一定删，要读 `example` 再判断。
+
 ---
 
-## 7. 用户偏好（加词相关）
+## 发布
 
-- 加词类需求若有两种以上解读（如"作为提及的类似词"可能=并入同义词 / 建独立词条），**先用 AskUserQuestion 确认**，别猜。
-- 用户要的是"写时调得出"的工具，不是藏品；分类维度可加，但用途维度（use）天然跨形式。
-- 排版/UI 偏好：浅色护眼 + 金棕主色（`--brand` 金棕），不用深色底。
+```bash
+cd D:\我的GitHub\check-in
+git add data.js index.html        # 只 add 本次真正改的文件
+git commit -m "feat(vocab): 新增「XX」词条(id NNNN)"
+git fetch origin
+git merge FETCH_HEAD --no-edit
+git push
+```
+
+**不用 `git rebase`、`git push --force`、`--no-verify`。**
+
+---
+
+## 常见坑速查
+
+| 现象 | 真相 | 解法 |
+|---|---|---|
+| `json.loads` 报 `Extra data` / `Expecting value` | 自己切片偏移算错，**不是文件坏** | 用正则定位，不手算偏移 |
+| 误以为"文件坏了"去翻 git 历史回滚 | 文件本来完好，越修越乱 | 先跑正则确认能解析 |
+| 改完线上没变 | 改的是过期副本 vocab-checkin | 改 `D:\我的GitHub\check-in` |
+| 强刷后仍没变 | 漏升缓存号 | 升对应 `?v=` |
+| 详情页看不到是哪个词 | 缺标题区 | 检查 `.d-head` 是否渲染 |
+| 盲区/用途维度点开为空 | 用途天然跨形式，不能落单 tab | 跨形式入口走「取用台」，勿写死 `currentTab='vocab'` |
+| 例句加粗没生效 | 加粗只做在某处渲染点 | 确认覆盖用户所指的那一处 |
+| 分类打完用户说"瞎分类" | 关键词批量打标签，没读释义 | 见「分类标签自查」 |
+| 改完条目数莫名变化 | 写回时切片边界算错 | 跑「改动校验清单」 |
+
+---
+
+## 用户偏好
+
+- 要"写时调得出"的工具，不是藏品。分类维度可加，但用途天然跨形式。
+- **先规划再动手**：小改动也先给方案+最终文案让用户拍板，别自作主张。
+- 对分类准确度要求极严：**宁可留「❓ 待定」也不要 AI 硬分类充数**。
+- 需求有两种以上解读时，先用 AskUserQuestion 确认，别猜。
+- UI：浅色护眼 + 金棕主色（`--brand:#b8861b`、底 `#f5f0e6`），**不用深色底**；左侧sidebar 导航。
+- 结论要直接，不写"以客户为中心"这类不可验证的套话。
