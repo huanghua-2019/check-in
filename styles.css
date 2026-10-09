@@ -282,6 +282,29 @@ main{padding:0 12px 24px;flex:1}
 .detail .row{display:grid;grid-template-columns:78px 1fr;gap:8px;margin:5px 0}
 .detail .label{color:var(--brand);font-weight:700;font-size:12px}
 .detail .val{color:var(--ink-2);word-break:break-word;white-space:pre-wrap}
+
+/* --- 详情页顶部：词条本体 --- */
+.d-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  margin:-2px 0 8px;padding:0 0 8px;
+  border-bottom:1px solid var(--line);
+}
+.d-word{
+  font-size:21px;font-weight:700;color:var(--ink);line-height:1.35;
+  word-break:break-word;letter-spacing:-.2px;
+}
+.d-word b{color:var(--brand);font-weight:700}
+.d-word mark{background:var(--brand-soft);color:var(--brand)}
+.d-meta{display:flex;gap:6px;flex-shrink:0;align-items:center}
+.d-tab{
+  font-size:11px;color:var(--ink-2);background:var(--bg);
+  border:1px solid var(--line);border-radius:9px;padding:1px 8px;white-space:nowrap;
+}
+.d-tier{font-size:11px;border-radius:9px;padding:1px 8px;white-space:nowrap}
+.d-tier.t-a{border:1px solid var(--brand);color:var(--brand);background:var(--brand-soft)}
+.d-tier.t-b{border:1px solid #2f8f9d;color:#2f8f9d;background:#e8f3f4}
+.d-tier.t-c{border:1px solid var(--line);color:var(--sub);background:var(--bg)}
+
 .mastery{display:flex;gap:4px;margin-top:8px}
 .mastery button{
   padding:3px 10px;font-size:11.5px;
@@ -654,6 +677,8 @@ body.has-bt .menu-btn,body.has-bt #menuBtn{top:66px}
   .hero-stats{grid-template-columns:1fr 1fr}
   .detail .row{grid-template-columns:1fr;gap:1px;margin:7px 0}
   .detail .val{font-size:13.5px;line-height:1.6}
+  .d-head{flex-direction:column;align-items:flex-start;gap:6px}
+  .d-word{font-size:19px}
   .today-row .tr-tags{display:none}
   .mine-row{flex-wrap:wrap}
   .mine-row .mr-w{min-width:0;width:100%}

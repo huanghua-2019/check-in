@@ -369,6 +369,18 @@
     d.className = 'detail';
     const q = filters.q.trim();
     const L = LABELS[w.tab] || LABELS.vocab;
+
+    // 顶部标题区：词条本体（让人一进来就知道是哪个词）
+    const head = document.createElement('div');
+    head.className = 'd-head';
+    const wordHTML = (w.tab === 'phr') ? phrBold(esc(w.word))
+      : q ? highlight(w.word, q) : esc(w.word);
+    head.innerHTML = `<div class="d-word">${wordHTML}</div>` +
+      `<div class="d-meta"><span class="d-tab">${esc(tabName(w.tab))}</span>` +
+      (w.tier ? `<span class="d-tier t-${w.tier === '核心' ? 'a' : w.tier === '进阶' ? 'b' : 'c'}">${esc(w.tier)}</span>` : '') +
+      `</div>`;
+    d.appendChild(head);
+
     const rows = [];
     if (w.syn) rows.push([L[0], w.syn]);
     if (w.mean) rows.push([L[1], w.mean]);
@@ -390,10 +402,8 @@
         `<button class="tag idx" data-idx="${esc(u)}">${esc(u)}</button>`).join('');
     }
     tags.innerHTML = `<div class="label">标签</div><div class="val">` +
-      `<span class="tag">${esc(tabName(w.tab))}</span>` +
       (primary ? `<span class="tag primary">${esc(primary)}</span>` : '') +
       idxHTML +
-      (w.tier ? `<span class="tag t-${w.tier === '核心' ? 'a' : w.tier === '进阶' ? 'b' : 'c'}">${esc(w.tier)}</span>` : '') +
       '</div>';
     d.appendChild(tags);
     tags.querySelectorAll('.tag.idx').forEach(b => b.addEventListener('click', ev => {
