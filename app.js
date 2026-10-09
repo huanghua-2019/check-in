@@ -202,6 +202,15 @@
       .replace(/(?<![A-Za-z])(XX|YY)(?![A-Za-z])/g, "<b>$1</b>")
       .replace(/(?<![A-Za-z])([AB])(?![A-Za-z])/g, "<b>$1</b>");
   }
+  /* 句式例句骨架词加粗：仅对 phr 的例句生效，金色凸显关联词/句式标志 */
+  const PAT_MARK = ['不在', '不在于', '而在于', '不是', '而是', '并非', '而非', '虽然', '但是', '看似', '实则', '实际上', '表面上', '一方面', '另一方面', '非但', '反而', '与其说', '不如说', '与其', '不如', '宁可', '也不', '不仅', '更', '不但', '而且', '既', '无论', '不论', '只有', '只要', '如果', '那么', '即便', '即使', '除非', '否则', '一旦', '关键在于', '关键不在', '而在', '根源在于', '根源是', '源于', '基于', '背后是', '背后', '说到底', '归根结底', '换言之', '换句话说', '说白了', '本质上', '本质是', '其实', '真正的', '所谓', '据此', '基于此', '对此', '表明', '我们建议', '我们提请', '予以', '印证了', '揭示了', '戳破', '颠覆', '绝非', '远比', '相比之下', '相较', '无非', '才是', '就是', '因为', '是由于', '是因为', '之所以', '原因是', '而应', '却', '恰恰', '正是'];
+  const PAT_RE = new RegExp('(' + PAT_MARK.slice().sort((a, b) => b.length - a.length).map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'g');
+  function exBold(text, q) {
+    if (!text) return '';
+    let h = esc(text).replace(PAT_RE, '<b>$1</b>');
+    if (q) h = h.replace(new RegExp('(' + q.trim().split(/\s+/).filter(Boolean).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi'), '<mark>$1</mark>');
+    return h;
+  }
   function stripEmoji(s) { return (s || '').replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]\s*/u, ''); }
   function isToday(iso) { if (!iso) return false; const d = new Date(iso), n = new Date(); return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate(); }
   function fmt(iso) { if (!iso) return ''; const d = new Date(iso); const p = x => ('' + x).padStart(2, '0'); return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
@@ -363,11 +372,11 @@
     const rows = [];
     if (w.syn) rows.push([L[0], w.syn]);
     if (w.mean) rows.push([L[1], w.mean]);
-    if (w.example) rows.push([L[2], w.example]);
-    if (w.scene) rows.push([L[3], w.scene]);
-    for (const [label, val] of rows) {
+    if (w.example) rows.push([L[2], w.example, w.tab === 'phr']);
+    if (w.scene) rows.push([L[3], w.scene, false]);
+    for (const [label, val, exb] of rows) {
       const r = document.createElement('div'); r.className = 'row';
-      const valHTML = (w.tab === "phr" && label === L[0]) ? phrBold(esc(val)) : highlight(val, q);
+      const valHTML = (w.tab === "phr" && label === L[0]) ? phrBold(esc(val)) : exb ? exBold(val, q) : highlight(val, q);
       r.innerHTML = `<div class="label">${esc(label)}</div><div class="val">${valHTML}</div>`;
       d.appendChild(r);
     }
