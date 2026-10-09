@@ -649,3 +649,5 @@ body.has-bt .menu-btn,body.has-bt #menuBtn{top:66px}
   .desk-head{padding:14px}
 }
 
+/* 句式模板占位符加粗（金棕） */
+.w-text b, .detail .val b, .tr-w b, .dr-w b, .mr-w b { color: var(--brand); font-weight: 700; }

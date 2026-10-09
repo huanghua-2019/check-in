@@ -195,6 +195,13 @@
     const re = new RegExp('(' + terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
     return safe.replace(re, '<mark>$1</mark>');
   }
+  /* 句式模板占位符加粗：省略号 / XX YY / 独立 A B */
+  function phrBold(s) {
+    return s
+      .replace(/(…{1,})/g, "<b>$1</b>")
+      .replace(/(?<![A-Za-z])(XX|YY)(?![A-Za-z])/g, "<b>$1</b>")
+      .replace(/(?<![A-Za-z])([AB])(?![A-Za-z])/g, "<b>$1</b>");
+  }
   function stripEmoji(s) { return (s || '').replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]\s*/u, ''); }
   function isToday(iso) { if (!iso) return false; const d = new Date(iso), n = new Date(); return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate(); }
   function fmt(iso) { if (!iso) return ''; const d = new Date(iso); const p = x => ('' + x).padStart(2, '0'); return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
@@ -360,7 +367,8 @@
     if (w.scene) rows.push([L[3], w.scene]);
     for (const [label, val] of rows) {
       const r = document.createElement('div'); r.className = 'row';
-      r.innerHTML = `<div class="label">${esc(label)}</div><div class="val">${highlight(val, q)}</div>`;
+      const valHTML = (w.tab === "phr" && label === L[0]) ? phrBold(esc(val)) : highlight(val, q);
+      r.innerHTML = `<div class="label">${esc(label)}</div><div class="val">${valHTML}</div>`;
       d.appendChild(r);
     }
     // 维度标签
@@ -425,7 +433,7 @@
     const lastStr = lastUsedStr(rec.last_used);
     const extra = subUses(w).map(u => `<span class="utag">${esc(u)}</span>`).join('');
     const myDot = mine[w.id] && mine[w.id].text ? '<span class="mydot" title="我写过例句">✎</span>' : '';
-    tap.innerHTML = `<div class="w-text">${highlight(w.word, q)}${myDot}</div>` +
+    tap.innerHTML = `<div class="w-text">${w.tab === "phr" ? phrBold(esc(w.word)) : highlight(w.word, q)}${myDot}</div>` +
       (w.syn ? `<div class="w-sub">${highlight(w.syn, q)}</div>` : '') +
       (extra || lastStr ? `<div class="w-foot">${extra}${lastStr ? `<span class="w-last">${esc(lastStr)}</span>` : ''}</div>` : '');
     tap.addEventListener('click', () => { open ? openIds.delete(w.id) : openIds.add(w.id); render(); });
@@ -603,7 +611,7 @@
     for (const w of picks) {
       const rec = getRec(w.id);
       const row = document.createElement('div'); row.className = 'today-row';
-      row.innerHTML = '<div class="tr-main"><div class="tr-w">' + esc(w.word) + '</div>' +
+      row.innerHTML = '<div class="tr-main"><div class="tr-w">' + (w.tab === "phr" ? phrBold(esc(w.word)) : esc(w.word)) + '</div>' +
         '<div class="tr-s">' + esc(w.syn || w.mean || '') + '</div></div>' +
         '<div class="tr-tags"><span class="tag">' + esc(tabName(w.tab)) + '</span>' +
         (rec.count ? '<span class="tag t-a">' + rec.count + '次</span>' : '<span class="tag t-c">没碰过</span>') + '</div>';
@@ -676,7 +684,9 @@
     for (const it of arr.slice(0, 12)) {
       const w = VOCAB.find(x => x.id === it.id);
       const row = document.createElement('div'); row.className = 'mine-row';
-      row.innerHTML = '<div class="mr-w">' + esc(w ? w.word : '(已删条目)') + '<small>' + esc(fmt(it.at)) + '</small></div>' +
+      const refWord = w ? w.word : "(已删条目)";
+      const refHTML = (w && w.tab === "phr") ? phrBold(esc(refWord)) : esc(refWord);
+      row.innerHTML = '<div class="mr-w">' + refHTML + '<small>' + esc(fmt(it.at)) + '</small></div>' +
         '<div class="mr-t">' + esc(it.text) + '</div>';
       const cp = document.createElement('button'); cp.className = 'mr-cp'; cp.type = 'button'; cp.textContent = '⧉';
       cp.addEventListener('click', () => copyText(it.text, '已复制我的例句'));
@@ -852,7 +862,7 @@
         const row = document.createElement('div'); row.className = 'desk-row';
         const rec = getRec(w.id);
         const sub = (w.use || []).slice(1).map(u => '<span class="utag">' + esc(u) + '</span>').join('');
-        row.innerHTML = '<div class="dr-main"><div class="dr-w">' + esc(w.word) + '</div>' +
+        row.innerHTML = '<div class="dr-main"><div class="dr-w">' + (w.tab === "phr" ? phrBold(esc(w.word)) : esc(w.word)) + '</div>' +
           '<div class="dr-s">' + esc(w.syn || w.mean || '') + '</div></div>' +
           '<div class="dr-right">' + sub + (rec.count ? '<span class="dr-c">' + rec.count + '</span>' : '') + '<span class="dr-cp">⧉</span></div>';
         row.addEventListener('click', () => {
