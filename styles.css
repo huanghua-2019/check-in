@@ -556,6 +556,17 @@ body.has-bt .menu-btn,body.has-bt #menuBtn{top:66px}
 .utag{font-size:10px;color:var(--brand);background:var(--brand-soft);border-radius:8px;padding:1px 6px;font-weight:600;white-space:nowrap}
 .mydot{font-size:11px;color:var(--ok);margin-left:5px;font-weight:700}
 
+/* --- 主归属 / 场景索引 区分 --- */
+/* 主归属：实心金棕，它是这条词唯一真正的分组依据 */
+.detail .val .tag.primary{border-color:var(--brand);color:#fff;background:var(--brand);font-weight:600}
+/* 场景索引：虚线浅底，可点击跳转筛选 */
+.detail .val .tag.idx{border-style:dashed;border-color:#b9c6cf;color:var(--ink-2);background:var(--card);cursor:pointer}
+.detail .val .tag.idx:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+.idx-sep{display:inline-block;margin:0 4px 4px 2px;font-size:10.5px;color:var(--sub)}
+/* 取用台行内的索引 chip 同样可点 */
+.utag.idx{border:1px dashed #b9c6cf;background:transparent;color:var(--ink-2);font-weight:400;cursor:pointer;font-family:inherit}
+.utag.idx:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+
 /* --- 详情页标签 --- */
 .detail .label small{font-weight:400;color:var(--sub);margin-left:6px;font-size:10.5px}
 .detail .val .tag{display:inline-block;margin:0 5px 4px 0;padding:1px 8px;border:1px solid var(--line);border-radius:10px;font-size:11px;color:var(--ink-2);background:var(--bg)}

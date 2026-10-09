@@ -380,12 +380,33 @@
       r.innerHTML = `<div class="label">${esc(label)}</div><div class="val">${valHTML}</div>`;
       d.appendChild(r);
     }
-    // 维度标签
+    // 维度标签：use[0] 为主归属（实心），其余为场景索引（可点击筛选）
     const tags = document.createElement('div'); tags.className = 'row';
-    tags.innerHTML = `<div class="label">标签</div><div class="val"><span class="tag">${esc(tabName(w.tab))}</span>` +
-      (w.use || []).map(u => `<span class="tag">${esc(u)}</span>`).join('') +
-      (w.tier ? `<span class="tag t-${w.tier === '核心' ? 'a' : w.tier === '进阶' ? 'b' : 'c'}">${esc(w.tier)}</span>` : '') + '</div>';
+    const primary = (w.use || [])[0];
+    const idxTags = (w.use || []).slice(1);
+    let idxHTML = '';
+    if (idxTags.length) {
+      idxHTML = '<span class="idx-sep">场景索引</span>' + idxTags.map(u =>
+        `<button class="tag idx" data-idx="${esc(u)}">${esc(u)}</button>`).join('');
+    }
+    tags.innerHTML = `<div class="label">标签</div><div class="val">` +
+      `<span class="tag">${esc(tabName(w.tab))}</span>` +
+      (primary ? `<span class="tag primary">${esc(primary)}</span>` : '') +
+      idxHTML +
+      (w.tier ? `<span class="tag t-${w.tier === '核心' ? 'a' : w.tier === '进阶' ? 'b' : 'c'}">${esc(w.tier)}</span>` : '') +
+      '</div>';
     d.appendChild(tags);
+    tags.querySelectorAll('.tag.idx').forEach(b => b.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const u = b.dataset.idx;
+      currentTab = 'desk';
+      try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
+      filters.use = 'all'; filters.status = 'all'; filters.tier = 'all'; filters.mastery = 'all';
+      desk.q = ''; desk.use = u; desk.topic = 'all';
+      collapsedGroups.delete(u);
+      syncChips(); closeSidebar(); render();
+      toast('已跳取用台，按场景索引「' + u + '」筛出');
+    }));
     const rd = document.createElement('div'); rd.className = 'row';
     rd.innerHTML = `<div class="label">打卡记录</div><div class="val">首次 ${fmt(rec.first_used) || '—'} · 最近 ${fmt(rec.last_used) || '—'} · 共 ${rec.count || 0} 次</div>`;
     d.appendChild(rd);
@@ -872,7 +893,7 @@
       for (const w of rows) {
         const row = document.createElement('div'); row.className = 'desk-row';
         const rec = getRec(w.id);
-        const sub = (w.use || []).slice(1).map(u => '<span class="utag">' + esc(u) + '</span>').join('');
+        const sub = (w.use || []).slice(1).map(u => '<button class="utag idx" data-idx="' + esc(u) + '">' + esc(u) + '</button>').join('');
         row.innerHTML = '<div class="dr-main"><div class="dr-w">' + (w.tab === "phr" ? phrBold(esc(w.word)) : esc(w.word)) + '</div>' +
           '<div class="dr-s">' + esc(w.syn || w.mean || '') + '</div></div>' +
           '<div class="dr-right">' + sub + (rec.count ? '<span class="dr-c">' + rec.count + '</span>' : '') + '<span class="dr-cp">⧉</span></div>';
@@ -880,6 +901,17 @@
           copyText(w.word, '已复制：' + w.word.slice(0, 14));
           const c = row.querySelector('.dr-cp'); if (c) { c.textContent = '✓'; setTimeout(() => { c.textContent = '⧉'; }, 900); }
         });
+        row.querySelectorAll('.utag.idx').forEach(b => b.addEventListener('click', ev => {
+          ev.stopPropagation();
+          desk.use = (desk.use === b.dataset.idx ? 'all' : b.dataset.idx);
+          desk.q = '';
+          renderDeskBody(body);
+          urow.querySelectorAll('.chip').forEach(x => {
+            const v = x.dataset.u;
+            x.classList.toggle('active', desk.use === 'all' ? !v : v === desk.use);
+          });
+          toast(desk.use === 'all' ? '已清除场景筛选' : '按场景索引「' + desk.use + '」筛选');
+        }));
         sec.appendChild(row);
       }
       body.appendChild(sec);
