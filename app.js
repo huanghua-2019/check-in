@@ -652,12 +652,14 @@
         '<span class="bl-num">' + r.d + '/' + r.t + '<small> ' + r.pct + '%</small></span></div>' +
         '<div class="dc-bar"><div class="dc-fill" style="width:' + r.pct + '%"></div></div>';
       row.addEventListener('click', () => {
-        currentTab = 'vocab'; filters.use = r.use; filters.status = 'unused';
-        filters.tier = 'all'; filters.mastery = 'all';
+        // 用途维度天然跨多个形式 tab，盲区点开应到「取用台」按 use 跨形式聚合，
+        // 否则切到 vocab 单页会把 quote/met/diff 里的条目全过滤掉（如「人生修养」vocab 里 0 条）
+        currentTab = 'desk'; filters.use = 'all'; filters.status = 'all'; filters.tier = 'all'; filters.mastery = 'all';
+        desk.q = ''; desk.use = r.use; desk.topic = 'all';
         try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
         collapsedGroups.delete(r.use);
         syncChips(); closeSidebar(); render();
-        toast('已筛出「' + r.label + '」里没打卡的');
+        toast('已打开取用台 · 「' + r.label + '」全部形式');
       });
       wrap.appendChild(row);
     }
