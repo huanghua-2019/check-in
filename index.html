@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>我的底层框架</title>
-<link rel="stylesheet" href="styles.css?v=18">
+<link rel="stylesheet" href="styles.css?v=19">
 </head>
 <body class="has-bt">
 <div id="bigTabs" class="big-tabs">
@@ -43,18 +43,25 @@
   <div class="progress"><div class="bar" id="progressBar"></div></div>
 
   <div class="toolbar">
-    <input id="search" type="search" placeholder="搜词 / 同义词 / 释义…" autocomplete="off">
+    <input id="search" type="search" placeholder="搜词 / 意思 / 场景 / 用途…" autocomplete="off">
     <div class="chip-row" id="statusFilter">
       <button class="chip active" data-f="all">全部</button>
       <button class="chip" data-f="unused">未打卡</button>
       <button class="chip" data-f="used">已打卡</button>
       <button class="chip" data-f="review">待复习</button>
+      <button class="chip" data-f="sham">看了没记住</button>
     </div>
     <div class="chip-row" id="masteryFilter">
       <button class="chip active" data-m="all">掌握·全部</button>
       <button class="chip" data-m="未用">未用</button>
       <button class="chip" data-m="偶尔">偶尔</button>
       <button class="chip" data-m="熟练">熟练</button>
+    </div>
+    <div class="chip-row" id="tierFilter">
+      <button class="chip active" data-t="all">分级·全部</button>
+      <button class="chip" data-t="核心">核心</button>
+      <button class="chip" data-t="进阶">进阶</button>
+      <button class="chip" data-t="备用">备用</button>
     </div>
     <div class="chip-row" id="catFilter"></div>
     <div class="toolbar-foot">
@@ -128,8 +135,8 @@
   </div>
 </div>
 
-<script src="data.js?v=19"></script>
-<script src="app.js?v=18"></script>
+<script src="data.js?v=20"></script>
+<script src="app.js?v=19"></script>
 <script src="habits.js?v=20"></script>
 </body>
 </html>
