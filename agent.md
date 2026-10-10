@@ -1,7 +1,11 @@
-# AGENTS.md · check-in 词库
+# AGENT 操作手册 · check-in 词库
 
-> 面向 AI coding agent 的项目说明。人类可读，但措辞以「可执行」为准。
+>面向 AI coding agent 的项目说明。人类可读，但措辞以「可执行」为准。
 > 本文件修改后无需升缓存号（不参与页面渲染）。
+>
+> - **`AGENTS.md` 是精简入口**（30 秒速览 + 铁律 + 必跑命令），新会话先读它。
+> - **本文件是详细版**，含完整模板与事故清单，遇到具体改动时查这里。
+> - `README.md` 是给人类的从0 到 1 搭建教程，改代码不必读。
 
 ## 项目一句话
 
@@ -27,7 +31,8 @@
    新条目用当前最大 id +1（现为 1920起）。
 5. **先规划再动手**。任何改动先给简短方案让用户拍板，不要闷头改、不要反复试错。
 6. **发布走 git 安全序列**（见「发布」），用 `merge FETCH_HEAD`，**不用 rebase、不用 --force、不跳 hook**。
-7. ⚠️ **改分类标签必须逐条读释义判断，禁止关键词规则批量打标签**。用户原话："你不能瞎分类"。
+7. **改完必跑 `build/verify.py`**，退出码非 0 就是没改对，别带着红灯提交。
+8. ⚠️ **改分类标签必须逐条读释义判断，禁止关键词规则批量打标签**。用户原话："你不能瞎分类"。
    已因此出错两次（把形容词塞进动词类；把整句碎片当词条）。**判断不了的一律丢「❓ 待定」，不要硬塞。**
 
 ---
@@ -112,6 +117,9 @@ window.TOPICS=[...];
 ## 常用命令
 
 ```bash
+# 改完必跑：全量校验（退出码非 0 就是没改对）
+"C:\Users\Lenovo\.workbuddy\binaries\python\versions\3.13.12\python.exe" build/verify.py --expect 1400
+
 # 解析 data.js（唯一正确方式，见下节）
 python -c "import re,json;src=open(r'D:\我的GitHub\check-in\data.js',encoding='utf-8').read();arr=json.loads(re.search(r'window\.VOCAB=(\[.*\]);\nwindow\.CATEGORIES',src,re.S).group(1));print(len(arr))"
 
@@ -177,7 +185,18 @@ open(P, "w", encoding="utf-8").write(out)
 
 ## 改动校验清单
 
-写回后**必须**全跑一遍：
+**首选：直接跑脚本**（覆盖下面全部检查项，比手抄代码块可靠）：
+
+```bash
+cd D:\我的GitHub\check-in
+"C:\Users\Lenovo\.workbuddy\binaries\python\versions\3.13.12\python.exe" build/verify.py --expect 1400
+```
+
+`--expect N` 断言改动后的条目总数；`--quiet` 只输出结论。**退出码非 0 就是没改对**，先修到通过再提交。
+
+脚本检查项：文件存在性 / data.js 四行结构与结尾分隔符 / build 时间戳头 / 条目数·id 唯一·字段完整·无空值 / use·tab·tier 合法性 / use 重复标签 / `app.js` 语法 / 缓存号齐全 / git 工作区状态。
+
+若需在自定义脚本内嵌校验，等价逻辑如下：
 
 ```python
 src2 = open(P, encoding="utf-8").read()
@@ -193,8 +212,6 @@ assert not [w["id"] for w in arr2 if any(x not in cats for x in w["use"])]  # us
 assert "];\nwindow.CATEGORIES" in src2# 结尾分隔符完好
 assert src2.count("\n") - src2.count("\r\n") == 4# 裸 LF 恰为 4
 ```
-
-改 `app.js` 后额外跑 `node --check app.js`。
 
 ---
 
