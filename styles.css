@@ -671,6 +671,16 @@ body.has-bt .menu-btn,body.has-bt #menuBtn{top:66px}
 .desk-row .dr-w{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.35}
 .desk-row .dr-s{font-size:11.5px;color:var(--sub);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .desk-row .dr-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+/* 取用台内联展开的详情：缩进 + 卡片底 */
+.desk-detail{
+  margin:0 13px 10px;padding:12px 14px;
+  background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);
+}
+.desk-detail .detail{margin:0}
+.desk-detail .checkin-btn{margin-top:10px}
+.desk-detail .act-row{margin-top:10px}
+.desk-detail .mine-box{margin-top:10px}
 .desk-row .dr-c{font-size:10.5px;font-weight:700;color:var(--ok);background:var(--ok-soft);border-radius:9px;padding:1px 7px}
 .desk-row .dr-cp{font-size:14px;color:var(--sub);padding:0 2px}
 .desk-row:hover .dr-cp{color:var(--brand)}

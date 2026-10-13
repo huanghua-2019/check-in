@@ -15,6 +15,7 @@
   let sbUrl = 'https://buzfmugezbemyfdmbgyt.supabase.co', sbKey = 'sb_publishable_HvD6YPPY-RpHLRicuoobSw_aSw1B_Ow', sbOn = true;
   const filters = { status: 'all', mastery: 'all', tier: 'all', use: 'all', q: '' };
   const desk = { q: '', use: 'all', topic: 'all', domain: 'all' };
+  const deskOpen = new Set();   // 取用台内已展开详情的条目 id
   const openIds = new Set();
   const collapsedGroups = new Set(USES);
   const isFiltering = () => filters.q.trim() || filters.status !== 'all' || filters.mastery !== 'all' || filters.tier !== 'all';
@@ -872,39 +873,39 @@
     const inp = document.createElement('input');
     inp.type = 'search'; inp.className = 'desk-search'; inp.placeholder = '我想表达……';
     inp.value = desk.q;
-    inp.addEventListener('input', () => { desk.q = inp.value; renderDeskBody(body); });
+    inp.addEventListener('input', () => { desk.q = inp.value; deskOpen.clear(); renderDeskBody(body); });
     head.appendChild(inp);
     const urow = document.createElement('div'); urow.className = 'chip-row desk-chips';
     const uAll = document.createElement('button'); uAll.className = 'chip' + (desk.use === 'all' ? ' active' : ''); uAll.textContent = '用途·全部';
-    uAll.addEventListener('click', () => { desk.use = 'all'; renderDeskBody(body); markChips(urow, desk.use); });
+    uAll.addEventListener('click', () => { desk.use = 'all'; deskOpen.clear(); renderDeskBody(body); markChips(urow, desk.use); });
     urow.appendChild(uAll);
     for (const u of USES) {
       const b = document.createElement('button'); b.className = 'chip' + (desk.use === u ? ' active' : ''); b.dataset.u = u;
       b.textContent = u;
-      b.addEventListener('click', () => { desk.use = (desk.use === u ? 'all' : u); renderDeskBody(body); markChips(urow, desk.use); });
+      b.addEventListener('click', () => { desk.use = (desk.use === u ? 'all' : u); deskOpen.clear(); renderDeskBody(body); markChips(urow, desk.use); });
       urow.appendChild(b);
     }
     head.appendChild(urow);
     // 副轴·领域标签（与分类/主题并列，语义互斥：领域指题材，主题指内容包）
     const drow = document.createElement('div'); drow.className = 'chip-row desk-chips';
     const dAll = document.createElement('button'); dAll.className = 'chip' + (desk.domain === 'all' ? ' active' : ''); dAll.textContent = '领域·全部';
-    dAll.addEventListener('click', () => { desk.domain = 'all'; renderDeskBody(body); markChips(drow, desk.domain, 'd'); });
+    dAll.addEventListener('click', () => { desk.domain = 'all'; deskOpen.clear(); renderDeskBody(body); markChips(drow, desk.domain, 'd'); });
     drow.appendChild(dAll);
     for (const dm of DOMAINS) {
       const b = document.createElement('button'); b.className = 'chip' + (desk.domain === dm ? ' active' : ''); b.dataset.d = dm;
       b.textContent = dm;
-      b.addEventListener('click', () => { desk.domain = (desk.domain === dm ? 'all' : dm); renderDeskBody(body); markChips(drow, desk.domain, 'd'); });
+      b.addEventListener('click', () => { desk.domain = (desk.domain === dm ? 'all' : dm); deskOpen.clear(); renderDeskBody(body); markChips(drow, desk.domain, 'd'); });
       drow.appendChild(b);
     }
     head.appendChild(drow);
     const trow = document.createElement('div'); trow.className = 'chip-row desk-chips';
     const tAll = document.createElement('button'); tAll.className = 'chip' + (desk.topic === 'all' ? ' active' : ''); tAll.textContent = '主题·全部';
-    tAll.addEventListener('click', () => { desk.topic = 'all'; renderDeskBody(body); markChips(trow, desk.topic, 't'); });
+    tAll.addEventListener('click', () => { desk.topic = 'all'; deskOpen.clear(); renderDeskBody(body); markChips(trow, desk.topic, 't'); });
     trow.appendChild(tAll);
     for (const tp of TOPICS) {
       const b = document.createElement('button'); b.className = 'chip' + (desk.topic === tp.name ? ' active' : ''); b.dataset.t = tp.name;
       b.textContent = tp.icon + ' ' + tp.name;
-      b.addEventListener('click', () => { desk.topic = (desk.topic === tp.name ? 'all' : tp.name); renderDeskBody(body); markChips(trow, desk.topic, 't'); });
+      b.addEventListener('click', () => { desk.topic = (desk.topic === tp.name ? 'all' : tp.name); deskOpen.clear(); renderDeskBody(body); markChips(trow, desk.topic, 't'); });
       trow.appendChild(b);
     }
     head.appendChild(trow);
@@ -944,15 +945,25 @@
         const sub = (w.use || []).slice(1).map(u => '<button class="utag idx" data-idx="' + esc(u) + '">' + esc(u) + '</button>').join('');
         row.innerHTML = '<div class="dr-main"><div class="dr-w">' + (w.tab === "phr" ? phrBold(esc(w.word)) : esc(w.word)) + '</div>' +
           '<div class="dr-s">' + esc(w.syn || w.mean || '') + '</div></div>' +
-          '<div class="dr-right">' + sub + (rec.count ? '<span class="dr-c">' + rec.count + '</span>' : '') + '<span class="dr-cp">⧉</span></div>';
+          '<div class="dr-right">' + sub + (rec.count ? '<span class="dr-c">' + rec.count + '</span>' : '') +
+          '<span class="dr-cp" title="复制">⧉</span></div>';
+        // 点击行 → 原地展开详情（toggle 后重渲染）
         row.addEventListener('click', () => {
+          if (deskOpen.has(w.id)) deskOpen.delete(w.id); else deskOpen.add(w.id);
+          renderDeskBody(body);
+        });
+        // 点 ⧉ → 只复制词条
+        const cp = row.querySelector('.dr-cp');
+        if (cp) cp.addEventListener('click', ev => {
+          ev.stopPropagation();
           copyText(w.word, '已复制：' + w.word.slice(0, 14));
-          const c = row.querySelector('.dr-cp'); if (c) { c.textContent = '✓'; setTimeout(() => { c.textContent = '⧉'; }, 900); }
+          cp.textContent = '✓';
+          setTimeout(() => { cp.textContent = '⧉'; }, 900);
         });
         row.querySelectorAll('.utag.idx').forEach(b => b.addEventListener('click', ev => {
           ev.stopPropagation();
           desk.use = (desk.use === b.dataset.idx ? 'all' : b.dataset.idx);
-          desk.q = '';
+          desk.q = ''; deskOpen.clear();
           renderDeskBody(body);
           urow.querySelectorAll('.chip').forEach(x => {
             const v = x.dataset.u;
@@ -961,6 +972,21 @@
           toast(desk.use === 'all' ? '已清除场景筛选' : '按场景索引「' + desk.use + '」筛选');
         }));
         sec.appendChild(row);
+        // 已展开 → 在行下方插入详情面板
+        if (deskOpen.has(w.id)) {
+          const wrap = document.createElement('div');
+          wrap.className = 'desk-detail';
+          const det = buildDetail(w, rec);
+          wrap.appendChild(det);
+          const cbtn = document.createElement('button');
+          cbtn.type = 'button';
+          cbtn.className = 'checkin-btn' + (isToday(rec.last_used) ? ' today' : '');
+          cbtn.setAttribute('aria-label', '打卡：' + w.word);
+          cbtn.innerHTML = rec.count > 0 ? '<span class="n">' + rec.count + '</span>' : '<span class="plus">✚</span>';
+          cbtn.addEventListener('click', ev => { ev.stopPropagation(); checkIn(w.id); });
+          wrap.appendChild(cbtn);
+          sec.appendChild(wrap);
+        }
       }
       body.appendChild(sec);
     }
