@@ -8,11 +8,13 @@
   const VOCAB = window.VOCAB || [];
   const USES = window.CATEGORIES || [];
   const TOPICS = window.TOPICS || [];
+  // 副轴·领域标签（可多值，不参与分组统计）
+  const DOMAINS = ['🏆 竞争格局', '👥 人性心理', '🏗️ 管理组织', '💰 投资决策', '🌿 人生修养'];
   let state = {};
   let mine = {};
   let sbUrl = 'https://buzfmugezbemyfdmbgyt.supabase.co', sbKey = 'sb_publishable_HvD6YPPY-RpHLRicuoobSw_aSw1B_Ow', sbOn = true;
   const filters = { status: 'all', mastery: 'all', tier: 'all', use: 'all', q: '' };
-  const desk = { q: '', use: 'all', topic: 'all' };
+  const desk = { q: '', use: 'all', topic: 'all', domain: 'all' };
   const openIds = new Set();
   const collapsedGroups = new Set(USES);
   const isFiltering = () => filters.q.trim() || filters.status !== 'all' || filters.mastery !== 'all' || filters.tier !== 'all';
@@ -396,23 +398,41 @@
     const tags = document.createElement('div'); tags.className = 'row';
     const primary = (w.use || [])[0];
     const idxTags = (w.use || []).slice(1);
+    const topicTags = w.topic || [];
     let idxHTML = '';
     if (idxTags.length) {
       idxHTML = '<span class="idx-sep">场景索引</span>' + idxTags.map(u =>
         `<button class="tag idx" data-idx="${esc(u)}">${esc(u)}</button>`).join('');
     }
+    let tpHTML = '';
+    if (topicTags.length) {
+      tpHTML = '<span class="idx-sep">领域标签</span>' + topicTags.map(t => {
+        const ic = (TOPICS.find(x => x.name === t) || {}).icon || '';
+        return `<button class="tag tp" data-dom="${esc(t)}">${ic ? ic + ' ' : ''}${esc(t)}</button>`;
+      }).join('');
+    }
     tags.innerHTML = `<div class="label">标签</div><div class="val">` +
       (primary ? `<span class="tag primary">${esc(primary)}</span>` : '') +
-      idxHTML +
+      idxHTML + tpHTML +
       '</div>';
     d.appendChild(tags);
+    tags.querySelectorAll('.tag.tp').forEach(b => b.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const dm = b.dataset.dom;
+      currentTab = 'desk';
+      try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
+      filters.use = 'all'; filters.status = 'all'; filters.tier = 'all'; filters.mastery = 'all';
+      desk.q = ''; desk.use = 'all'; desk.topic = 'all'; desk.domain = dm;
+      syncChips(); closeSidebar(); render();
+      toast('已跳取用台，按领域标签「' + dm + '」筛选');
+    }));
     tags.querySelectorAll('.tag.idx').forEach(b => b.addEventListener('click', ev => {
       ev.stopPropagation();
       const u = b.dataset.idx;
       currentTab = 'desk';
       try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
       filters.use = 'all'; filters.status = 'all'; filters.tier = 'all'; filters.mastery = 'all';
-      desk.q = ''; desk.use = u; desk.topic = 'all';
+      desk.q = ''; desk.use = u; desk.topic = 'all'; desk.domain = 'all';
       collapsedGroups.delete(u);
       syncChips(); closeSidebar(); render();
       toast('已跳取用台，按场景索引「' + u + '」筛出');
@@ -686,7 +706,7 @@
         // 用途维度天然跨多个形式 tab，盲区点开应到「取用台」按 use 跨形式聚合，
         // 否则切到 vocab 单页会把 quote/met/diff 里的条目全过滤掉（如「人生修养」vocab 里 0 条）
         currentTab = 'desk'; filters.use = 'all'; filters.status = 'all'; filters.tier = 'all'; filters.mastery = 'all';
-        desk.q = ''; desk.use = r.use; desk.topic = 'all';
+        desk.q = ''; desk.use = r.use; desk.topic = 'all'; desk.domain = 'all';
         try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
         collapsedGroups.delete(r.use);
         syncChips(); closeSidebar(); render();
@@ -821,10 +841,16 @@
   function deskResults() {
     let arr = VOCAB.slice();
     if (desk.use !== 'all') arr = arr.filter(w => (w.use || []).indexOf(desk.use) >= 0);
+    if (desk.domain !== 'all') arr = arr.filter(w => (w.topic || []).indexOf(desk.domain) >= 0);
     if (desk.topic !== 'all') {
       const tp = TOPICS.find(t => t.name === desk.topic);
-      if (tp) {
+      const isDomain = DOMAINS.indexOf(desk.topic) >= 0;
+      if (isDomain) {
+        // 领域标签：优先读物化的 w.topic，无则回退关键词匹配
+        arr = arr.filter(w => (w.topic || []).indexOf(desk.topic) >= 0);
+      } else if (tp) {
         arr = arr.filter(w => {
+          if ((w.topic || []).indexOf(desk.topic) >= 0) return true;
           const hay = (w.word + ' ' + (w.syn || '') + ' ' + (w.mean || '') + ' ' + (w.example || '') + ' ' + (w.scene || '')).toLowerCase();
           return tp.keys.some(k => hay.indexOf(k.toLowerCase()) >= 0);
         });
@@ -859,6 +885,18 @@
       urow.appendChild(b);
     }
     head.appendChild(urow);
+    // 副轴·领域标签（与分类/主题并列，语义互斥：领域指题材，主题指内容包）
+    const drow = document.createElement('div'); drow.className = 'chip-row desk-chips';
+    const dAll = document.createElement('button'); dAll.className = 'chip' + (desk.domain === 'all' ? ' active' : ''); dAll.textContent = '领域·全部';
+    dAll.addEventListener('click', () => { desk.domain = 'all'; renderDeskBody(body); markChips(drow, desk.domain, 'd'); });
+    drow.appendChild(dAll);
+    for (const dm of DOMAINS) {
+      const b = document.createElement('button'); b.className = 'chip' + (desk.domain === dm ? ' active' : ''); b.dataset.d = dm;
+      b.textContent = dm;
+      b.addEventListener('click', () => { desk.domain = (desk.domain === dm ? 'all' : dm); renderDeskBody(body); markChips(drow, desk.domain, 'd'); });
+      drow.appendChild(b);
+    }
+    head.appendChild(drow);
     const trow = document.createElement('div'); trow.className = 'chip-row desk-chips';
     const tAll = document.createElement('button'); tAll.className = 'chip' + (desk.topic === 'all' ? ' active' : ''); tAll.textContent = '主题·全部';
     tAll.addEventListener('click', () => { desk.topic = 'all'; renderDeskBody(body); markChips(trow, desk.topic, 't'); });

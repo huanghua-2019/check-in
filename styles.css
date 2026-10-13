@@ -586,6 +586,9 @@ body.has-bt .menu-btn,body.has-bt #menuBtn{top:66px}
 .detail .val .tag.idx{border-style:dashed;border-color:#b9c6cf;color:var(--ink-2);background:var(--card);cursor:pointer}
 .detail .val .tag.idx:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
 .idx-sep{display:inline-block;margin:0 4px 4px 2px;font-size:10.5px;color:var(--sub)}
+/* 领域标签（副轴）：与场景索引视觉区分，用浅蓝底 */
+.detail .val .tag.tp{border-style:solid;border-color:#9dc3e6;color:#185fa5;background:#e6f1fb;cursor:pointer}
+.detail .val .tag.tp:hover{background:#d3e6f7;border-color:#185fa5}
 /* 取用台行内的索引 chip 同样可点 */
 .utag.idx{border:1px dashed #b9c6cf;background:transparent;color:var(--ink-2);font-weight:400;cursor:pointer;font-family:inherit}
 .utag.idx:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}

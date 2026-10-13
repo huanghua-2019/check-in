@@ -21,8 +21,9 @@ DATA = os.path.join(REPO, "data.js")
 INDEX = os.path.join(REPO, "index.html")
 APP = os.path.join(REPO, "app.js")
 
-REQUIRED_FIELDS = {"id", "tab", "tier", "use", "cat",
-                   "word", "syn", "mean", "example", "scene"}
+REQUIRED_FIELDS = {"id", "tab", "tier", "use", "cat", "word",
+                   "syn", "mean", "example", "scene"}
+OPTIONAL_FIELDS = {"topic"}   # 副轴·领域标签（多值，仅筛选）
 VALID_TABS = {"vocab", "phr", "met", "quote", "humor", "cases", "rule", "diff"}
 VALID_TIERS = {"核心", "进阶", "备用"}
 
@@ -130,11 +131,31 @@ def main():
         dup = [i for i in set(ids) if ids.count(i) > 1]
         c.fail("id 重复", "重复值：%s" % dup[:10])
 
-    bad = [w["id"] for w in arr if set(w) != REQUIRED_FIELDS]
+    bad = [w["id"] for w in arr if set(w) - OPTIONAL_FIELDS != REQUIRED_FIELDS]
     if not bad:
-        c.ok("10 字段齐全", "共 %d 条" % len(arr))
+        c.ok("10 字段齐全(+可选 topic)", "共 %d 条" % len(arr))
     else:
         c.fail("字段缺失/多余", "%d 条异常：%s" % (len(bad), bad[:10]))
+
+    # topic 合法性：值必须是 TOPICS 名称或 5 个领域类
+    domains = {"🏆 竞争格局", "👥 人性心理", "🏗️ 管理组织",
+               "💰 投资决策", "🌿 人生修养"}
+    tnames = {t["name"] for t in tops}
+    badtp = [w["id"] for w in arr
+             if "topic" in w and any(x not in tnames and x not in domains
+                                    for x in w["topic"])]
+    if not badtp:
+        n_tp = sum(1 for w in arr if "topic" in w)
+        c.ok("topic 全为合法标签", "%d 条含 topic" % n_tp)
+    else:
+        c.fail("非法 topic 值", "%d 条：%s" % (len(badtp), badtp[:10]))
+
+    dup_tp = [w["id"] for w in arr
+              if "topic" in w and len(w["topic"]) != len(set(w["topic"]))]
+    if not dup_tp:
+        c.ok("topic 无重复标签")
+    else:
+        c.fail("topic 存在重复标签", "%s" % dup_tp[:10])
 
     empty = [w["id"] for w in arr
              if not (w["word"] or "").strip() or not (w["mean"] or "").strip()]
