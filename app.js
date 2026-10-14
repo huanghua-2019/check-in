@@ -3,6 +3,8 @@
   const LS_STATE = 'vocab_checkin_state_v1';
   const LS_SB = 'vocab_sb_config_v1';
   const LS_MINE = 'vocab_mine_v1';
+  const LS_CUSTOM_TAGS = 'vocab_custom_tags_v1';
+  const LS_ENTRY_TAGS = 'vocab_entry_tags_v1';
   const MASTERY = ['未用', '偶尔', '熟练'];
 
   const VOCAB = window.VOCAB || [];
@@ -10,14 +12,40 @@
   const TOPICS = window.TOPICS || [];
   // 副轴·领域标签（可多值，不参与分组统计）
   const DOMAINS = ['🏆 竞争格局', '👥 人性心理', '🏗️ 管理组织', '💰 投资决策', '🌿 人生修养'];
+  // 新分类视图以原条目的人工维护分类为输入，不改动数据本身或打卡 ID。
+  const SCENE_CATEGORIES = ['日常生活', '工作与沟通', '人际关系', '人物与心理描写', '环境与细节描写', '思考与分析', '阅读与写作', '❓ 待整理'];
+  const FUNCTION_CATEGORIES = ['描述', '表达', '对话', '沟通', '分析', '组织语言', '❓ 待整理'];
+  const SCENE_BY_OLD_CAT = {
+    '01-观点与论述':'思考与分析','02-逻辑关系':'思考与分析','03-程度与属性':'人物与心理描写','04-行为与动作':'日常生活',
+    '05-事物与指代':'环境与细节描写','06-概念与术语':'思考与分析','07A-素材与描写·人物与群体':'人物与心理描写',
+    '07B-素材与描写·事物与状态':'环境与细节描写','07C-素材与描写·时空与环境':'环境与细节描写',
+    '07D-素材与描写·动作与行为':'人物与心理描写','08-精准表达':'阅读与写作',
+    '💰 估值与财务':'思考与分析','⚖️ 投资交易与法务':'工作与沟通','🏗️ 组织与管理':'工作与沟通',
+    '🌐 宏观与周期':'思考与分析','🔍 逻辑与论证':'思考与分析','🧠 认知与思维':'思考与分析',
+    '💼 商业判断':'工作与沟通','🛒 品牌与消费':'日常生活','⚔️ 竞争与生存':'思考与分析',
+    '🧘 投资心态':'日常生活','👥 人性与关系':'人际关系','🔄 变化与趋势':'思考与分析',
+    '🌿 人生感悟':'日常生活','⚠️ 风险与警示':'思考与分析','✍️ 表达句式与模板':'阅读与写作',
+    '📈 投资理念':'思考与分析','💼 商务写作句式模板':'工作与沟通','⚖️ 判断断言类':'思考与分析',
+    '🔄 对比揭示类':'思考与分析','🚀 文章开篇类':'阅读与写作','📋 列举论证类':'阅读与写作',
+    '📊 因果分析类':'思考与分析','🎯 设问与反问类':'工作与沟通','📈 数据论证类':'思考与分析','✨ 排比与金句类':'阅读与写作'
+  };
+  const FUNCTION_BY_OLD_USE = {
+    '🔤 精准形容词':'描述','🗣️ 灵活动词':'表达','↔️ 副词连词':'组织语言','📐 概念指代':'分析',
+    '🎯 立论判断':'表达','🔗 论证推理':'分析','⚖️ 对比转折':'组织语言','📊 举证说明':'分析',
+    '💡 打比方':'描述','🔍 洞察本质':'分析','⚠️ 警示风险':'表达','🖋️ 描写刻画':'描述',
+    '✍️ 写作技法':'组织语言','😂 幽默调侃':'对话'
+  };
+  function sceneOf(entry) { return SCENE_BY_OLD_CAT[entry && entry.cat] || '❓ 待整理'; }
+  function functionOf(entry) { return FUNCTION_BY_OLD_USE[useOf(entry)] || '❓ 待整理'; }
   let state = {};
   let mine = {};
   let sbUrl = 'https://buzfmugezbemyfdmbgyt.supabase.co', sbKey = 'sb_publishable_HvD6YPPY-RpHLRicuoobSw_aSw1B_Ow', sbOn = true;
-  const filters = { status: 'all', mastery: 'all', tier: 'all', use: 'all', q: '' };
+  const filters = { status: 'all', mastery: 'all', tier: 'all', use: 'all', scene: 'all', function: 'all', customTag: 'all', q: '' };
   const desk = { q: '', use: 'all', topic: 'all', domain: 'all' };
   const deskOpen = new Set();   // 取用台内已展开详情的条目 id
   const openIds = new Set();
-  const collapsedGroups = new Set(USES);
+  const collapsedGroups = new Set(SCENE_CATEGORIES);
+  let selectedWordId = null;
   const isFiltering = () => filters.q.trim() || filters.status !== 'all' || filters.mastery !== 'all' || filters.tier !== 'all';
 
   /* ---------- 七个形式（tab）+ 首页 + 取用台 ---------- */
@@ -41,6 +69,11 @@
     for (const w of VOCAB) if (tabOf(w) === tabId) s.add(useOf(w));
     return USES.filter(u => s.has(u)).concat([...s].filter(u => USES.indexOf(u) < 0));
   }
+  function tabGroups(tabId) {
+    return (tabId === 'vocab' || tabId === 'phr')
+      ? SCENE_CATEGORIES.filter(s => VOCAB.some(w => tabOf(w) === tabId && sceneOf(w) === s))
+      : tabUses(tabId);
+  }
   const LS_TAB = 'vocab_current_tab_v1';
   let currentTab = (function () { try { return localStorage.getItem(LS_TAB) || 'home'; } catch (e) { return 'home'; } })();
 
@@ -58,6 +91,12 @@
 
   try { state = JSON.parse(localStorage.getItem(LS_STATE)) || {}; } catch (e) { state = {}; }
   try { mine = JSON.parse(localStorage.getItem(LS_MINE)) || {}; } catch (e) { mine = {}; }
+  let customTags = [], entryTags = {};
+  try { customTags = JSON.parse(localStorage.getItem(LS_CUSTOM_TAGS)) || []; } catch (e) { customTags = []; }
+  try { entryTags = JSON.parse(localStorage.getItem(LS_ENTRY_TAGS)) || {}; } catch (e) { entryTags = {}; }
+  function tagsForWord(entry) { return entryTags[String(entry.id)] || []; }
+  function saveCustomTags() { try { localStorage.setItem(LS_CUSTOM_TAGS, JSON.stringify(customTags)); } catch (e) {} }
+  function saveEntryTags() { try { localStorage.setItem(LS_ENTRY_TAGS, JSON.stringify(entryTags)); } catch (e) {} }
   try { const c = JSON.parse(localStorage.getItem(LS_SB)); if (c && c.url && c.key) { sbUrl = c.url; sbKey = c.key; } } catch (e) {}
   sbOn = !!(sbUrl && sbKey);
 
@@ -348,6 +387,9 @@
       if (filters.mastery !== 'all' && rec.mastery !== filters.mastery) return false;
       if (filters.tier !== 'all' && w.tier !== filters.tier) return false;
       if (filters.use !== 'all' && (w.use || []).indexOf(filters.use) < 0) return false;
+      if ((currentTab === 'vocab' || currentTab === 'phr') && filters.scene !== 'all' && sceneOf(w) !== filters.scene) return false;
+      if ((currentTab === 'vocab' || currentTab === 'phr') && filters.function !== 'all' && functionOf(w) !== filters.function) return false;
+      if ((currentTab === 'vocab' || currentTab === 'phr') && filters.customTag !== 'all' && !tagsForWord(w).includes(filters.customTag)) return false;
       if (q && matchScore(w, q) < 0) return false;
       return true;
     });
@@ -526,6 +568,12 @@
     return sec;
   }
   function render() {
+    const pageTitle = document.getElementById('pageTitle');
+    const titles = { home: '首页', desk: '表达取用台', today: '今日打卡', categories: '分类管理', review: '复习训练', stats: '学习统计' };
+    if (pageTitle) pageTitle.textContent = titles[currentTab] || tabName(currentTab);
+    document.body.classList.toggle('on-home', ['home', 'desk'].includes(currentTab));
+    document.body.classList.toggle('on-library', TABS.some(t => t.id === currentTab));
+    document.body.classList.toggle('on-new-page', ['today', 'categories', 'review', 'stats'].includes(currentTab));
     if (currentTab === 'home') {
       document.body.classList.add('on-home');
       renderDashboard(); updateStats(); renderTabs(); return;
@@ -534,20 +582,242 @@
       document.body.classList.add('on-home');
       renderDesk(); updateStats(); renderTabs(); return;
     }
+    if (currentTab === 'today') { renderTodayPage(); updateStats(); renderTabs(); return; }
+    if (currentTab === 'categories') { renderCategoryManager(); updateStats(); renderTabs(); return; }
+    if (currentTab === 'review') { renderReviewPage(); updateStats(); renderTabs(); return; }
+    if (currentTab === 'stats') { renderStatsPage(); updateStats(); renderTabs(); return; }
     document.body.classList.remove('on-home');
-    const words = visibleWords();
-    const byGroup = {};
-    for (const w of words) (byGroup[useOf(w)] = byGroup[useOf(w)] || []).push(w);
-    list.innerHTML = '';
-    let any = false;
-    for (const u of tabUses(currentTab)) {
-      const arr = byGroup[u]; if (!arr || !arr.length) continue;
-      any = true; list.appendChild(groupEl(u, arr));
-    }
-    if (!any) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = '没有匹配的词条'; list.appendChild(e); }
+    renderLibraryPage();
     updateStats(); renderTabs(); renderUseFilter(); updateToggleAll(); updateReviewBtn();
   }
-  function currentVocab() { return (currentTab === 'home' || currentTab === 'desk') ? VOCAB : tabVocab(currentTab); }
+  function currentVocab() { return TABS.some(t => t.id === currentTab) ? tabVocab(currentTab) : VOCAB; }
+  function navigate(id) {
+    currentTab = id;
+    selectedWordId = null;
+    try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
+    filters.use = 'all';
+    filters.scene = 'all'; filters.function = 'all'; filters.customTag = 'all';
+    closeSidebar();
+    render();
+  }
+  function pageHeading(title, subtitle) {
+    const el = document.createElement('div'); el.className = 'page-heading';
+    el.innerHTML = '<div><h2>' + esc(title) + '</h2><p>' + esc(subtitle || '') + '</p></div>';
+    return el;
+  }
+  function renderLibraryPage() {
+    const words = visibleWords();
+    if (!words.some(w => w.id === selectedWordId)) selectedWordId = words.length ? words[0].id : null;
+    const layout = document.createElement('div'); layout.className = 'library-layout';
+    const pane = document.createElement('section'); pane.className = 'library-pane';
+    const heading = pageHeading(tabName(currentTab), '共 ' + tabVocab(currentTab).length + ' 条 · 搜索、筛选后选择词条查看详情');
+    pane.appendChild(heading);
+    const result = document.createElement('div'); result.className = 'library-result';
+    result.innerHTML = '<span>当前筛选 ' + words.length + ' 条</span>';
+    if (currentTab === 'vocab' || currentTab === 'phr') {
+      const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'group-toggle';
+      const groups = [...new Set(words.map(sceneOf))];
+      const allClosed = groups.length > 0 && groups.every(g => collapsedGroups.has(g));
+      toggle.textContent = allClosed ? '展开全部分类' : '收起全部分类';
+      toggle.addEventListener('click', () => {
+        if (allClosed) groups.forEach(g => collapsedGroups.delete(g)); else groups.forEach(g => collapsedGroups.add(g));
+        renderLibraryPage();
+      }); result.appendChild(toggle);
+    }
+    pane.appendChild(result);
+    const rows = document.createElement('div'); rows.className = 'library-rows';
+    const renderWord = w => {
+      const rec = getRec(w.id);
+      const row = document.createElement('button'); row.type = 'button';
+      row.className = 'library-item' + (w.id === selectedWordId ? ' selected' : '');
+      row.innerHTML = '<span class="li-copy"><b>' + (w.tab === 'phr' ? phrBold(esc(w.word)) : highlight(w.word, filters.q)) + '</b>' +
+        '<small>' + esc(w.syn || w.mean || '') + '</small><span class="li-tags"><i>' + esc(w.tier || '') + '</i>' +
+        '<i>' + esc(functionOf(w)) + '</i><i>' + esc(sceneOf(w)) + '</i></span></span><span class="li-count">' + (rec.count ? rec.count + '次' : '未用') + '</span>';
+      row.addEventListener('click', () => { selectedWordId = w.id; renderLibraryPage(); });
+      return row;
+    };
+    if (currentTab === 'vocab' || currentTab === 'phr') {
+      const byScene = new Map();
+      for (const w of words) { const scene = sceneOf(w); if (!byScene.has(scene)) byScene.set(scene, []); byScene.get(scene).push(w); }
+      if (selectedWordId != null) { const selected = words.find(w => w.id === selectedWordId); if (selected) collapsedGroups.delete(sceneOf(selected)); }
+      const orderedScenes = SCENE_CATEGORIES.filter(s => byScene.has(s));
+      for (const scene of orderedScenes) {
+        const groupWords = byScene.get(scene), group = document.createElement('section');
+        const collapsed = collapsedGroups.has(scene) && !filters.q.trim(); group.className = 'library-group' + (collapsed ? ' collapsed' : '');
+        let done = 0; for (const w of groupWords) if (getRec(w.id).count > 0) done++;
+        const head = document.createElement('button'); head.type = 'button'; head.className = 'library-group-head';
+        head.innerHTML = '<span class="lgh-name">' + esc(scene) + '</span><span class="lgh-count">' + done + ' / ' + groupWords.length + ' 已练</span><span class="lgh-caret">' + (collapsed ? '＋' : '−') + '</span>';
+        head.addEventListener('click', () => { collapsedGroups.has(scene) ? collapsedGroups.delete(scene) : collapsedGroups.add(scene); renderLibraryPage(); });
+        const body = document.createElement('div'); body.className = 'library-group-body';
+        for (const w of groupWords) body.appendChild(renderWord(w));
+        group.append(head, body); rows.appendChild(group);
+      }
+    } else {
+      for (const w of words) rows.appendChild(renderWord(w));
+    }
+    if (!words.length) { const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = '没有匹配的词条，试试清除筛选条件。'; rows.appendChild(empty); }
+    pane.appendChild(rows); layout.appendChild(pane);
+    const detailPane = document.createElement('section'); detailPane.className = 'library-detail-pane';
+    const selected = words.find(w => w.id === selectedWordId);
+    if (selected) {
+      const action = document.createElement('div'); action.className = 'detail-action';
+      const rec = getRec(selected.id);
+      action.innerHTML = '<span>打卡 ' + (rec.count || 0) + ' 次</span>';
+      const check = document.createElement('button'); check.type = 'button'; check.className = 'btn-primary'; check.textContent = isToday(rec.last_used) ? '今天已打卡 · 再记一次' : '记一次使用';
+      check.addEventListener('click', () => checkIn(selected.id)); action.appendChild(check);
+      detailPane.appendChild(action); detailPane.appendChild(buildDetail(selected, rec));
+      if (currentTab === 'vocab' || currentTab === 'phr') detailPane.appendChild(renderCustomTagEditor(selected));
+    } else { detailPane.innerHTML = '<div class="empty detail-empty">从左侧选一条词库内容</div>'; }
+    layout.appendChild(detailPane); list.innerHTML = ''; list.appendChild(layout);
+  }
+  function renderCustomTagEditor(entry) {
+    const box = document.createElement('section'); box.className = 'custom-tag-editor';
+    box.innerHTML = '<h3>自定义标签</h3>';
+    const selected = new Set(tagsForWord(entry));
+    if (!customTags.length) { const hint = document.createElement('p'); hint.className = 'muted'; hint.textContent = '还没有标签，可在下方新建并添加到这条内容。'; box.appendChild(hint); }
+    const chips = document.createElement('div'); chips.className = 'custom-tag-list';
+    for (const tag of customTags) {
+      const label = document.createElement('label'); label.className = 'custom-tag-option';
+      const input = document.createElement('input'); input.type = 'checkbox'; input.checked = selected.has(tag);
+      input.addEventListener('change', () => {
+        const values = new Set(tagsForWord(entry)); input.checked ? values.add(tag) : values.delete(tag);
+        entryTags[String(entry.id)] = [...values]; saveEntryTags(); renderLibraryPage();
+      });
+      label.append(input, document.createTextNode(tag)); chips.appendChild(label);
+    }
+    box.appendChild(chips);
+    const row = document.createElement('div'); row.className = 'custom-tag-create';
+    const input = document.createElement('input'); input.type = 'text'; input.maxLength = 20; input.placeholder = '新建标签并添加到此条';
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'btn-ghost'; add.textContent = '添加';
+    add.addEventListener('click', () => {
+      const tag = input.value.trim(); if (!tag) return;
+      if (!customTags.includes(tag)) customTags.push(tag);
+      const values = new Set(tagsForWord(entry)); values.add(tag); entryTags[String(entry.id)] = [...values];
+      saveCustomTags(); saveEntryTags(); renderLibraryPage();
+    });
+    row.append(input, add); box.appendChild(row); return box;
+  }
+  function renderTodayPage() {
+    const target = 5, count = todayCount(), pct = Math.min(100, Math.round(count / target * 100));
+    const wrap = document.createElement('div'); wrap.className = 'new-page';
+    wrap.appendChild(pageHeading('今天练一点，表达就多一点', '每日推荐 5 条，复习旧内容并尝试把新表达用出来。'));
+    const goal = document.createElement('section'); goal.className = 'goal-card';
+    goal.innerHTML = '<div><span class="eyebrow">今日目标</span><h3>完成 5 次词条练习</h3><p>已记录 ' + count + ' 次 · 连续打卡 ' + streak() + ' 天</p></div>' +
+      '<div class="goal-ring" style="--progress:' + pct + '%"><b>' + Math.min(count, target) + '<small>/5</small></b></div>';
+    const bar = document.createElement('div'); bar.className = 'goal-bar'; bar.innerHTML = '<span style="width:' + pct + '%"></span>'; goal.appendChild(bar); wrap.appendChild(goal);
+    const section = document.createElement('section'); section.className = 'new-card';
+    const sh = document.createElement('div'); sh.className = 'new-card-head'; sh.innerHTML = '<h3>今日推荐</h3><button type="button" class="link-btn">换一批 ↻</button>';
+    sh.querySelector('button').addEventListener('click', () => { let n = 0; try { n = +(localStorage.getItem(LS_TODAY_NONCE + dayKey(new Date())) || 0); localStorage.setItem(LS_TODAY_NONCE + dayKey(new Date()), String(n + 1)); } catch (e) {} renderTodayPage(); });
+    section.appendChild(sh);
+    const picks = pickToday();
+    if (!picks.length) { const done = document.createElement('div'); done.className = 'empty'; done.textContent = '今天推荐的内容都练过了，可以去词库继续探索。'; section.appendChild(done); }
+    for (const w of picks) {
+      const rec = getRec(w.id); const row = document.createElement('article'); row.className = 'practice-item';
+      row.innerHTML = '<div class="practice-main"><span class="eyebrow">' + esc(tabName(w.tab)) + ' · ' + esc(w.tier || '') + '</span><h4>' + (w.tab === 'phr' ? phrBold(esc(w.word)) : esc(w.word)) + '</h4><p>' + esc(w.mean || w.syn || '') + '</p><small>' + esc(w.scene || '') + '</small></div>';
+      const actions = document.createElement('div'); actions.className = 'practice-actions';
+      const open = document.createElement('button'); open.type = 'button'; open.className = 'btn-ghost'; open.textContent = '查看词条'; open.addEventListener('click', () => { navigate(w.tab); selectedWordId = w.id; render(); });
+      const check = document.createElement('button'); check.type = 'button'; check.className = 'btn-primary'; check.textContent = isToday(rec.last_used) ? '再练一次' : '完成练习'; check.addEventListener('click', () => checkIn(w.id));
+      actions.append(open, check); row.appendChild(actions); section.appendChild(row);
+    }
+    wrap.appendChild(section); list.innerHTML = ''; list.appendChild(wrap);
+  }
+  function renderCategoryManager() {
+    const wrap = document.createElement('div'); wrap.className = 'new-page';
+    wrap.appendChild(pageHeading('分类管理', '分类用于快速找到合适的表达。比喻、金句、幽默继续作为独立词库保留。'));
+    const forms = document.createElement('section'); forms.className = 'new-card';
+    forms.innerHTML = '<div class="new-card-head"><h3>内容形式</h3><span class="muted">按内容类型浏览</span></div>';
+    const grid = document.createElement('div'); grid.className = 'category-grid form-grid';
+    for (const t of TABS) {
+      const count = tabVocab(t.id).length; const btn = document.createElement('button'); btn.type = 'button';
+      const fixed = ['met', 'quote', 'humor'].includes(t.id);
+      btn.className = 'category-card' + (fixed ? ' protected' : '');
+      btn.innerHTML = '<span class="category-icon" style="--tc:' + t.color + '">' + t.icon + '</span><span><b>' + esc(t.name) + (fixed ? '<small>专属分类</small>' : '') + '</b><small>' + count + ' 条内容</small></span><span class="category-arrow">›</span>';
+      btn.addEventListener('click', () => navigate(t.id)); grid.appendChild(btn);
+    }
+    forms.appendChild(grid); wrap.appendChild(forms);
+    const uses = document.createElement('section'); uses.className = 'new-card';
+    uses.innerHTML = '<div class="new-card-head"><h3>词汇与句式分类</h3><span class="muted">场景 + 表达功能 + 领域标签</span></div>';
+    const useGrid = document.createElement('div'); useGrid.className = 'category-grid';
+    for (const scene of SCENE_CATEGORIES) {
+      const n = VOCAB.filter(w => ['vocab','phr'].includes(tabOf(w)) && sceneOf(w) === scene).length;
+      if (!n) continue;
+      const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'use-card';
+      btn.innerHTML = '<span>场景 · ' + esc(scene) + '</span><b>' + n + '</b>';
+      btn.addEventListener('click', () => { navigate('vocab'); filters.scene = scene; render(); }); useGrid.appendChild(btn);
+    }
+    for (const fn of FUNCTION_CATEGORIES) {
+      const n = VOCAB.filter(w => ['vocab','phr'].includes(tabOf(w)) && functionOf(w) === fn).length;
+      if (!n) continue;
+      const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'use-card';
+      btn.innerHTML = '<span>功能 · ' + esc(fn) + '</span><b>' + n + '</b>';
+      btn.addEventListener('click', () => { navigate('vocab'); filters.function = fn; render(); }); useGrid.appendChild(btn);
+    }
+    uses.appendChild(useGrid); wrap.appendChild(uses);
+    const tagValues = new Set(); for (const w of VOCAB) if (['vocab','phr'].includes(tabOf(w))) for (const tag of (w.topic || [])) tagValues.add(tag);
+    const tagCard = document.createElement('section'); tagCard.className = 'new-card';
+    tagCard.innerHTML = '<div class="new-card-head"><h3>领域与主题标签</h3><span class="muted">作为辅助筛选</span></div>';
+    const tagGrid = document.createElement('div'); tagGrid.className = 'category-grid';
+    for (const tag of [...tagValues].sort((a,b) => a.localeCompare(b, 'zh-CN'))) {
+      const n = VOCAB.filter(w => ['vocab','phr'].includes(tabOf(w)) && (w.topic || []).includes(tag)).length;
+      const item = document.createElement('div'); item.className = 'use-card'; item.innerHTML = '<span>' + esc(tag) + '</span><b>' + n + '</b>'; tagGrid.appendChild(item);
+    }
+    tagCard.appendChild(tagGrid); wrap.appendChild(tagCard);
+    const customCard = document.createElement('section'); customCard.className = 'new-card';
+    customCard.innerHTML = '<div class="new-card-head"><h3>自定义标签</h3><span class="muted">在词条详情中添加或移除</span></div>';
+    const createRow = document.createElement('div'); createRow.className = 'custom-tag-create';
+    const tagInput = document.createElement('input'); tagInput.type = 'text'; tagInput.maxLength = 20; tagInput.placeholder = '例如：想练习、适合开头';
+    const createButton = document.createElement('button'); createButton.type = 'button'; createButton.className = 'btn-ghost'; createButton.textContent = '新建标签';
+    createButton.addEventListener('click', () => {
+      const value = tagInput.value.trim(); if (!value) return;
+      if (!customTags.includes(value)) { customTags.push(value); saveCustomTags(); }
+      renderCategoryManager();
+    });
+    createRow.append(tagInput, createButton); customCard.appendChild(createRow);
+    const customGrid = document.createElement('div'); customGrid.className = 'category-grid custom-tag-categories';
+    if (!customTags.length) { const emptyTags = document.createElement('p'); emptyTags.className = 'muted'; emptyTags.textContent = '暂无自定义标签'; customGrid.appendChild(emptyTags); }
+    for (const tag of customTags) {
+      const n = VOCAB.filter(w => ['vocab','phr'].includes(tabOf(w)) && tagsForWord(w).includes(tag)).length;
+      const item = document.createElement('button'); item.type = 'button'; item.className = 'use-card';
+      item.innerHTML = '<span>' + esc(tag) + '</span><b>' + n + '</b>';
+      item.addEventListener('click', () => { navigate('vocab'); filters.customTag = tag; render(); }); customGrid.appendChild(item);
+    }
+    customCard.appendChild(customGrid); wrap.appendChild(customCard);
+    const note = document.createElement('p'); note.className = 'taxonomy-note'; note.textContent = '比喻、金句、幽默继续作为独立内容形式；词汇和句式按场景、功能浏览，领域和主题作为辅助标签。'; wrap.appendChild(note);
+    list.innerHTML = ''; list.appendChild(wrap);
+  }
+  function renderReviewPage() {
+    const due = VOCAB.filter(w => needReview(getRec(w.id))).sort((a, b) => {
+      const ar = getRec(a.id), br = getRec(b.id); const tier = { '核心': 0, '进阶': 1, '备用': 2 };
+      return (tier[a.tier] ?? 3) - (tier[b.tier] ?? 3) || (ar.last_used || '').localeCompare(br.last_used || '');
+    });
+    const wrap = document.createElement('div'); wrap.className = 'new-page';
+    wrap.appendChild(pageHeading('复习训练', '优先复习超过 7 天未使用的内容；可以直接练习，也可以标记掌握程度。'));
+    const summary = document.createElement('div'); summary.className = 'metric-row';
+    summary.innerHTML = '<div class="metric-card"><b>' + due.length + '</b><span>待复习</span></div><div class="metric-card"><b>' + todayCount() + '</b><span>今日练习</span></div><div class="metric-card"><b>' + streak() + ' 天</b><span>连续打卡</span></div>';
+    wrap.appendChild(summary);
+    const section = document.createElement('section'); section.className = 'new-card'; section.innerHTML = '<div class="new-card-head"><h3>复习队列</h3><span class="muted">先显示 60 条</span></div>';
+    for (const w of due.slice(0, 60)) {
+      const rec = getRec(w.id); const row = document.createElement('article'); row.className = 'practice-item compact';
+      row.innerHTML = '<div class="practice-main"><span class="eyebrow">' + esc(tabName(w.tab)) + ' · ' + esc(w.tier || '') + '</span><h4>' + (w.tab === 'phr' ? phrBold(esc(w.word)) : esc(w.word)) + '</h4><p>' + esc(w.mean || w.syn || '') + '</p><small>' + (rec.last_used ? '上次使用：' + esc(fmt(rec.last_used)) : '尚未打卡') + '</small></div>';
+      const actions = document.createElement('div'); actions.className = 'practice-actions';
+      const open = document.createElement('button'); open.type = 'button'; open.className = 'btn-ghost'; open.textContent = '详情'; open.addEventListener('click', () => { navigate(w.tab); selectedWordId = w.id; render(); });
+      const check = document.createElement('button'); check.type = 'button'; check.className = 'btn-primary'; check.textContent = '练习'; check.addEventListener('click', () => checkIn(w.id)); actions.append(open, check); row.appendChild(actions); section.appendChild(row);
+    }
+    if (!due.length) { const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = '当前没有待复习内容，继续保持。'; section.appendChild(empty); }
+    wrap.appendChild(section); list.innerHTML = ''; list.appendChild(wrap);
+  }
+  function renderStatsPage() {
+    const done = checkedSet().size; const total = VOCAB.reduce((n, w) => n + (getRec(w.id).count || 0), 0);
+    const wrap = document.createElement('div'); wrap.className = 'new-page';
+    wrap.appendChild(pageHeading('学习统计', '统计依据现有词条打卡、掌握度与每日记录。'));
+    const metrics = document.createElement('div'); metrics.className = 'metric-row';
+    metrics.innerHTML = '<div class="metric-card"><b>' + VOCAB.length + '</b><span>词库条目</span></div><div class="metric-card"><b>' + done + '</b><span>练习过的条目</span></div><div class="metric-card"><b>' + total + '</b><span>累计打卡次数</span></div><div class="metric-card"><b>' + streak() + ' 天</b><span>连续打卡</span></div>';
+    wrap.appendChild(metrics);
+    wrap.appendChild(buildWeekChart()); wrap.appendChild(buildTabsBreakdown(checkedSet()));
+    let m = [0, 0, 0]; for (const w of VOCAB) { const x = getRec(w.id).mastery; m[x === '偶尔' ? 1 : x === '熟练' ? 2 : 0]++; }
+    wrap.appendChild(buildMastery(m[0], m[1], m[2]));
+    list.innerHTML = ''; list.appendChild(wrap);
+  }
   function updateStats() {
     const tabV = currentVocab();
     const doneSet = new Set(Object.keys(state).filter(k => state[k] && state[k].count > 0).map(Number));
@@ -576,8 +846,24 @@
       if (m === '未用') m0++; else if (m === '偶尔') m1++; else m2++;
     }
     const dash = document.createElement('div'); dash.className = 'dash';
-    dash.appendChild(buildHero(totalWords, done, total, pct));
+    const welcome = document.createElement('section'); welcome.className = 'welcome-panel';
+    welcome.innerHTML = '<div><span class="eyebrow">词汇工坊 · 每天练习一点</span><h2>早上好，继续积累你的表达力</h2><p>从词汇、比喻、金句和幽默中找到下一句好表达。</p></div>' +
+      '<div class="welcome-streak">🔥 <b>' + streak() + '</b><small>天连续练习</small></div>';
+    const quick = document.createElement('div'); quick.className = 'quick-grid';
+    const quickPages = [
+      ['📚', '我的词库', VOCAB.length + ' 条内容', 'vocab'],
+      ['🗂️', '分类管理', TABS.length + ' 种形式', 'categories'],
+      ['✅', '今日打卡', '今日 ' + todayCount() + ' 次练习', 'today'],
+      ['📊', '学习统计', '查看练习进度', 'stats'],
+    ];
+    for (const [icon, name, sub, id] of quickPages) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'quick-card';
+      b.innerHTML = '<span>' + icon + '</span><b>' + name + '</b><small>' + sub + '</small><i>›</i>';
+      b.addEventListener('click', () => navigate(id)); quick.appendChild(b);
+    }
+    dash.appendChild(welcome); dash.appendChild(buildHero(totalWords, done, total, pct)); dash.appendChild(quick);
     dash.appendChild(buildToday());
+    dash.appendChild(buildRecentWords());
     dash.appendChild(buildBlind(doneSet));
     dash.appendChild(buildWeekChart());
     dash.appendChild(buildTabsBreakdown(doneSet));
@@ -585,6 +871,18 @@
     dash.appendChild(buildMineList());
     list.innerHTML = '';
     list.appendChild(dash);
+  }
+  function buildRecentWords() {
+    const sec = document.createElement('section'); sec.className = 'dash-section recent-section';
+    sec.innerHTML = '<h2 class="dash-h">最近加入 <small>按词条编号展示最近添加的内容</small></h2>';
+    const items = VOCAB.slice().sort((a, b) => b.id - a.id).slice(0, 5);
+    const rows = document.createElement('div'); rows.className = 'recent-grid';
+    for (const w of items) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'recent-item';
+      b.innerHTML = '<b>' + esc(w.word) + '</b><span>' + esc(tabName(w.tab)) + '</span><small>' + esc((w.mean || w.syn || '').slice(0, 44)) + '</small>';
+      b.addEventListener('click', () => { navigate(w.tab); selectedWordId = w.id; render(); }); rows.appendChild(b);
+    }
+    sec.appendChild(rows); return sec;
   }
   function buildHero(totalWords, done, total, pct) {
     const hero = document.createElement('section'); hero.className = 'dash-hero';
@@ -1000,19 +1298,14 @@
   function renderTabs() {
     const el = document.getElementById('tabs'); if (!el) return;
     el.innerHTML = '';
-    const home = document.createElement('button');
-    home.className = 'tab tab-home' + (currentTab === 'home' ? ' active' : '');
-    home.innerHTML = '<span class="t-ico">🏠</span><span class="t-name">首页</span>';
-    home.style.setProperty('--tc', '#b8861b');
-    home.addEventListener('click', () => go('home'));
-    el.appendChild(home);
-    const deskBtn = document.createElement('button');
-    deskBtn.className = 'tab tab-home' + (currentTab === 'desk' ? ' active' : '');
-    deskBtn.innerHTML = '<span class="t-ico">🎯</span><span class="t-name">取用台</span>';
-    deskBtn.style.setProperty('--tc', '#c0553a');
-    deskBtn.addEventListener('click', () => go('desk'));
-    el.appendChild(deskBtn);
-    const sep = document.createElement('div'); sep.className = 'sb-sep'; el.appendChild(sep);
+    const addLabel = text => { const x = document.createElement('div'); x.className = 'nav-label'; x.textContent = text; el.appendChild(x); };
+    const addPage = (id, icon, name) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tab tab-home' + (currentTab === id ? ' active' : '');
+      b.innerHTML = '<span class="t-ico">' + icon + '</span><span class="t-name">' + name + '</span>';
+      b.addEventListener('click', () => navigate(id)); el.appendChild(b);
+    };
+    addPage('home', '🏠', '首页'); addPage('today', '✅', '今日打卡'); addPage('review', '🧠', '复习训练'); addPage('stats', '📊', '学习统计');
+    addLabel('我的词库');
     for (const t of TABS) {
       const v = tabVocab(t.id);
       let d = 0, sum = 0;
@@ -1020,15 +1313,51 @@
       const b = document.createElement('button');
       b.className = 'tab' + (t.id === currentTab ? ' active' : '');
       b.style.setProperty('--tc', t.color);
-      b.innerHTML = `<span class="t-ico">${t.icon}</span><span class="t-name">${t.name}</span><span class="t-count">${d}<small>/${v.length}</small></span><small class="t-sum">${sum}次</small>`;
-      b.addEventListener('click', () => go(t.id));
+      const protectedTab = ['met', 'quote', 'humor'].includes(t.id);
+      b.innerHTML = `<span class="t-ico">${t.icon}</span><span class="t-name">${t.name}</span><span class="t-count">${d}<small>/${v.length}</small></span>` + (protectedTab ? '<span class="nav-lock" title="独立保留的专属分类">◆</span>' : '') + `<small class="t-sum">${sum}次</small>`;
+      b.addEventListener('click', () => navigate(t.id));
       el.appendChild(b);
     }
-    function go(id) { currentTab = id; try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {} filters.use = 'all'; closeSidebar(); render(); }
+    addLabel('工具');
+    addPage('categories', '🗂️', '分类管理'); addPage('desk', '🎯', '表达取用台');
+    const modules = [{ id: 'sleep', icon: '🌙', name: '早睡打卡' }, { id: 'method', icon: '💡', name: '底层框架' }];
+    for (const mod of modules) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tab module-link';
+      b.innerHTML = '<span class="t-ico">' + mod.icon + '</span><span class="t-name">' + mod.name + '</span>';
+      b.addEventListener('click', () => switchModule(mod.id)); el.appendChild(b);
+    }
+  }
+  function switchModule(id) {
+    document.querySelectorAll('.module').forEach(m => { m.hidden = m.id !== 'mod-' + id; });
+    document.querySelectorAll('.btab').forEach(b => b.classList.toggle('active', b.dataset.mod === id));
+    closeSidebar();
+    if (id === 'writing') render();
   }
   function renderUseFilter() {
     const cf = document.getElementById('catFilter'); if (!cf) return;
     cf.innerHTML = '';
+    if (currentTab === 'vocab' || currentTab === 'phr') {
+      const addFacet = (label, values, key, attr, getter) => {
+        const heading = document.createElement('span'); heading.className = 'facet-label'; heading.textContent = label; cf.appendChild(heading);
+        const all = document.createElement('button'); all.className = 'chip' + (filters[key] === 'all' ? ' active' : ''); all.dataset[attr] = 'all'; all.textContent = '全部'; cf.appendChild(all);
+        const buttons = [all];
+        for (const value of values) {
+          const count = tabVocab(currentTab).filter(w => { const v = getter(w); return Array.isArray(v) ? v.includes(value) : v === value; }).length;
+          if (!count) continue;
+          const b = document.createElement('button'); b.className = 'chip' + (filters[key] === value ? ' active' : ''); b.dataset[attr] = value;
+          b.textContent = value + ' ' + count; cf.appendChild(b); buttons.push(b);
+        }
+        buttons.forEach(b => b.addEventListener('click', () => {
+          filters[key] = b.dataset[attr];
+          if (key === 'scene' && filters.scene !== 'all') collapsedGroups.delete(filters.scene);
+          render();
+        }));
+      };
+      addFacet('场景', SCENE_CATEGORIES, 'scene', 'scene', sceneOf);
+      addFacet('功能', FUNCTION_CATEGORIES, 'function', 'function', functionOf);
+      addFacet('自定义', customTags, 'customTag', 'customTag', tagsForWord);
+      return;
+    }
     const all = document.createElement('button');
     all.className = 'chip' + (filters.use === 'all' ? ' active' : ''); all.dataset.use = 'all'; all.textContent = '全部用途';
     cf.appendChild(all);
@@ -1074,12 +1403,16 @@
   wireChips(document.getElementById('statusFilter'), 'f', 'status');
   wireChips(document.getElementById('masteryFilter'), 'm', 'mastery');
   wireChips(document.getElementById('tierFilter'), 't', 'tier');
-  document.getElementById('search').addEventListener('input', e => { filters.q = e.target.value; render(); });
+  document.getElementById('search').addEventListener('input', e => {
+    filters.q = e.target.value;
+    if (filters.q.trim() && (currentTab === 'vocab' || currentTab === 'phr')) collapsedGroups.clear();
+    render();
+  });
 
   /* ---------- 展开/收起全部分类 ---------- */
   const toggleAllBtn = document.getElementById('toggleAll');
   if (toggleAllBtn) toggleAllBtn.addEventListener('click', () => {
-    const gs = tabUses(currentTab);
+    const gs = tabGroups(currentTab);
     if (!gs.length) return;
     const allCollapsed = gs.every(c => collapsedGroups.has(c));
     if (allCollapsed) gs.forEach(c => collapsedGroups.delete(c));
@@ -1088,7 +1421,7 @@
   });
   function updateToggleAll() {
     if (!toggleAllBtn) return;
-    const gs = tabUses(currentTab);
+    const gs = tabGroups(currentTab);
     const allCollapsed = gs.length > 0 && gs.every(c => collapsedGroups.has(c));
     toggleAllBtn.textContent = allCollapsed ? '展开全部 ▾' : '收起全部 ▴';
   }
@@ -1193,7 +1526,10 @@
   }
 
   /* ---------- 启动 ---------- */
-  if (['home', 'desk'].indexOf(currentTab) < 0 && !TABS.some(t => t.id === currentTab)) currentTab = 'home';
+  const APP_PAGES = ['home', 'desk', 'today', 'categories', 'review', 'stats'];
+  if (APP_PAGES.indexOf(currentTab) < 0 && !TABS.some(t => t.id === currentTab)) currentTab = 'home';
+  document.querySelectorAll('.btab').forEach(b => b.addEventListener('click', () => switchModule(b.dataset.mod)));
+  switchModule('writing');
   render();
   if (sbOn) {
     syncPull().then(() => syncPushAll())
