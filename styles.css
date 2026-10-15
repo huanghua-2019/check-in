@@ -831,3 +831,26 @@ body{background:var(--bg);color:var(--ink)}
 }
 
 .taxonomy-line{overflow-x:auto}.taxonomy-item{flex:0 0 auto;padding:5px 11px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.65);color:var(--ink);font-size:12px}
+
+/* Spacious inline detail inspired by the supplied reading layout */
+.word{flex-wrap:wrap}
+.word.open{background:#fff;border:1px solid var(--line);box-shadow:0 6px 24px rgba(34,54,82,.07);padding:18px 20px}
+.word .detail{box-sizing:border-box;flex:0 0 100%;margin:14px 0 4px;padding:22px 26px;background:#fff;border:1px solid #e7e9ec;border-radius:16px;font-size:16px;line-height:1.8}
+.word .detail .d-head{align-items:center;margin:0 0 4px;padding:0 0 18px;border-color:#eceef0}
+.word .detail .d-word{font-size:28px;line-height:1.4;letter-spacing:0}
+.word .detail .d-tab,.word .detail .d-tier{font-size:14px;border:0;border-radius:999px;padding:5px 12px;background:#f1f2f2;color:#333}
+.word .detail .row{display:block;margin:0;padding:18px 0;border-bottom:1px solid #eceef0}
+.word .detail .label{margin:0 0 9px;color:#777;font-size:16px;font-weight:500}
+.word .detail .val{font-size:16px;line-height:1.85;color:#25282c}
+.word .detail .val .tag{margin:0 7px 7px 0;padding:5px 12px;border:0;border-radius:999px;background:#f1f2f2;color:#292d31;font-size:14px}
+.word .detail .val .tag.primary{background:#f1f2f2;color:#292d31;font-weight:600}
+.word .detail .val .tag.tp{background:#eaf3fb;color:#245d8f}
+.word .detail .idx-sep{margin:0 8px 0 0;font-size:13px}
+.word .detail .mastery{margin-top:16px;gap:8px}
+.word .detail .mastery button{padding:7px 14px;font-size:14px}
+.word .detail .act-row{gap:10px;margin-top:18px}
+.word .detail .act{padding:9px 14px;font-size:14px}
+.word .detail .mine-box{margin-top:22px;padding-top:18px;border-top:1px solid #eceef0}
+.word .detail .mine-box .label{font-size:16px;margin-bottom:10px}
+.word .detail .mine-box textarea{min-height:92px;padding:12px 14px;font-size:15px;line-height:1.7}
+@media(max-width:650px){.word.open{padding:12px}.word .detail{padding:16px}.word .detail .d-word{font-size:23px}.word .detail .row{padding:14px 0}.word .detail .val{font-size:15px}}

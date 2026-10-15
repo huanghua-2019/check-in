@@ -455,18 +455,19 @@
       `</div>`;
     d.appendChild(head);
 
-    const rows = [];
-    if (w.syn) rows.push([L[0], w.syn]);
-    if (w.mean) rows.push([L[1], w.mean]);
-    if (w.example) rows.push([L[2], w.example, w.tab === 'phr']);
-    if (w.scene) rows.push([L[3], w.scene, false]);
-    for (const [label, val, exb] of rows) {
-      const r = document.createElement('div'); r.className = 'row';
-      const valHTML = (w.tab === "phr" && label === L[0]) ? phrBold(esc(val)) : exb ? exBold(val, q) : highlight(val, q);
-      r.innerHTML = `<div class="label">${esc(label)}</div><div class="val">${valHTML}</div>`;
-      d.appendChild(r);
-    }
-    // 维度标签：use[0] 为主归属（实心），其余为场景索引（可点击筛选）
+    const appendRows = items => {
+      for (const [label, val, exb] of items) {
+        const r = document.createElement('div'); r.className = 'row';
+        const valHTML = (w.tab === 'phr' && label === L[0]) ? phrBold(esc(val)) : exb ? exBold(val, q) : highlight(val, q);
+        r.innerHTML = `<div class="label">${esc(label)}</div><div class="val">${valHTML}</div>`;
+        d.appendChild(r);
+      }
+    };
+    const introRows = [];
+    if (w.mean) introRows.push([w.tab === 'vocab' ? '\u6838\u5fc3\u91ca\u4e49' : L[1], w.mean, false]);
+    if (w.scene) introRows.push([L[3], w.scene, false]);
+    appendRows(introRows);
+    // Classification chips sit between the usage context and synonym/example sections.
     const tags = document.createElement('div'); tags.className = 'row';
     const primary = SCENE_TABS.includes(w.tab) ? subcategoryOf(w) : useOf(w);
     const idxTags = SCENE_TABS.includes(w.tab) ? [] : (w.use || []).slice(1);
@@ -474,22 +475,26 @@
     const topicTags = w.topic || [];
     let idxHTML = '';
     if (idxTags.length) {
-      idxHTML = '<span class="idx-sep">场景索引</span>' + idxTags.map(u =>
+      idxHTML = '<span class="idx-sep">\u573a\u666f\u7d22\u5f15</span>' + idxTags.map(u =>
         `<button class="tag idx" data-idx="${esc(u)}">${esc(u)}</button>`).join('');
     }
     let tpHTML = '';
     if (topicTags.length) {
-      tpHTML = '<span class="idx-sep">领域标签</span>' + topicTags.map(t => {
+      tpHTML = '<span class="idx-sep">\u9886\u57df\u6807\u7b7e</span>' + topicTags.map(t => {
         const ic = (TOPICS.find(x => x.name === t) || {}).icon || '';
         return `<button class="tag tp" data-dom="${esc(t)}">${ic ? ic + ' ' : ''}${esc(t)}</button>`;
       }).join('');
     }
-    tags.innerHTML = `<div class="label">分类与标签</div><div class="val">` +
+    tags.innerHTML = `<div class="label">\u573a\u666f\u4e0e\u8868\u8fbe\u7c7b\u522b</div><div class="val">` +
       (primary ? `<span class="tag primary">${esc(primary)}</span>` : '') +
       categoryTags.map(tag => `<span class="tag">${esc(tag)}</span>`).join('') +
       idxHTML + tpHTML +
       '</div>';
     d.appendChild(tags);
+    const practiceRows = [];
+    if (w.syn) practiceRows.push([L[0], w.syn, false]);
+    if (w.example) practiceRows.push([L[2], w.example, w.tab === 'phr']);
+    appendRows(practiceRows);
     tags.querySelectorAll('.tag.tp').forEach(b => b.addEventListener('click', ev => {
       ev.stopPropagation();
       const dm = b.dataset.dom;
