@@ -574,64 +574,15 @@
     };
     if (w.mean) appendRow(w.tab === 'vocab' ? '\u6838\u5fc3\u91ca\u4e49' : L[1], w.mean, false);
     if (w.scene) appendRow(L[3], w.scene, false);
-    const tags = document.createElement('div'); tags.className = 'detail-taxonomy';
-    const addPillRow = (label, values, clickable, kind) => {
-      if (!values.length) return;
-      const row = document.createElement('div'); row.className = 'row';
-      const val = document.createElement('div'); val.className = 'val';
-      for (const value of values) {
-        const pill = document.createElement(clickable ? 'button' : 'span');
-        pill.className = 'tag' + (clickable ? ' ' + kind : '');
-        pill.textContent = value;
-        if (clickable && kind === 'idx') pill.dataset.idx = value;
-        val.appendChild(pill);
-      }
-      const title = document.createElement('div'); title.className = 'label'; title.textContent = label;
-      row.append(title, val); tags.appendChild(row);
-    };
-    if (w.tab === 'vocab') {
-      addPillRow('\u573a\u666f\u5206\u7c7b', [sceneOf(w), ...subUses(w)], false, '');
-      addPillRow('\u8bcd\u6027', [wordClassOf(w)], false, '');
-      addPillRow('\u8868\u8fbe\u4f5c\u7528', [expressionFunctionOf(w)], false, '');
-    } else {
-      addPillRow('\u5206\u7c7b', [subcategoryOf(w)], false, '');
-    }
-    const topicTags = w.topic || [];
-    if (topicTags.length) {
-      const row = document.createElement('div'); row.className = 'row';
-      const title = document.createElement('div'); title.className = 'label'; title.textContent = '\u9886\u57df\u6807\u7b7e';
-      const val = document.createElement('div'); val.className = 'val';
-      for (const topic of topicTags) {
-        const ic = (TOPICS.find(x => x.name === topic) || {}).icon || '';
-        const pill = document.createElement('button'); pill.className = 'tag tp'; pill.dataset.dom = topic;
-        pill.textContent = (ic ? ic + ' ' : '') + topic; val.appendChild(pill);
-      }
-      row.append(title, val); tags.appendChild(row);
-    }
-    d.appendChild(tags);
     if (w.syn) appendRow(L[0], w.syn, false);
     if (w.example) appendRow(L[2], w.example, w.tab === 'phr');
-    tags.querySelectorAll('.tag.tp').forEach(b => b.addEventListener('click', ev => {
-      ev.stopPropagation();
-      const dm = b.dataset.dom;
-      currentTab = 'desk';
-      try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
-      resetLibraryFilters();
-      desk.q = ''; desk.use = 'all'; desk.topic = 'all'; desk.domain = dm;
-      syncChips(); closeSidebar(); render();
-      toast('已跳取用台，按领域标签「' + dm + '」筛选');
-    }));
-    tags.querySelectorAll('.tag.idx').forEach(b => b.addEventListener('click', ev => {
-      ev.stopPropagation();
-      const u = b.dataset.idx;
-      currentTab = 'desk';
-      try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
-      resetLibraryFilters();
-      desk.q = ''; desk.use = u; desk.topic = 'all'; desk.domain = 'all';
-      collapsedGroups.delete(u);
-      syncChips(); closeSidebar(); render();
-      toast('已跳取用台，按场景索引「' + u + '」筛出');
-    }));
+    // 分类信息统一由下方「分类标签」编辑器呈现（多值、可改），此处不再重复展示只读行。
+    // 不参与表达功能/场景/词性分类的三类（辨析、案例、规则）在此保留用途分类展示，避免信息丢失。
+    if (!isTaxonomized(w)) {
+      const r = document.createElement('div'); r.className = 'row';
+      r.innerHTML = '<div class="label">用途分类</div><div class="val">' + esc(useOf(w)) + '</div>';
+      d.appendChild(r);
+    }
     const rd = document.createElement('div'); rd.className = 'row';
     rd.innerHTML = `<div class="label">打卡记录</div><div class="val">首次 ${fmt(rec.first_used) || '—'} · 最近 ${fmt(rec.last_used) || '—'} · 共 ${rec.count || 0} 次</div>`;
     d.appendChild(rd);
@@ -1194,24 +1145,8 @@
     }
     tagCard.appendChild(customGrid);
 
-    /* 附加：领域与主题标签（保留原有辅助筛选） */
-    const tagValues = [];
-    for (const w of taxScope) for (const t of (w.topic || [])) if (tagValues.indexOf(t) < 0) tagValues.push(t);
-    if (tagValues.length) {
-      const domainCard = document.createElement('section'); domainCard.className = 'new-card';
-      domainCard.innerHTML = '<div class="new-card-head"><h3>领域与主题标签</h3><span class="muted">词库自带的辅助筛选，不参与上面的分类</span></div>';
-      const grid = document.createElement('div'); grid.className = 'category-grid';
-      for (const tag of tagValues.sort((a, b) => a.localeCompare(b, 'zh-CN'))) {
-        const n = taxScope.filter(w => (w.topic || []).indexOf(tag) >= 0).length;
-        const item = document.createElement('div'); item.className = 'use-card';
-        item.innerHTML = '<span>' + esc(tag) + '</span><b>' + n + '</b>';
-        grid.appendChild(item);
-      }
-      domainCard.appendChild(grid); wrap.appendChild(domainCard);
-    }
-
     const note = document.createElement('p'); note.className = 'taxonomy-note';
-    note.textContent = '表达功能、使用场景、词性的默认值来自词库原始分类；在词条详情里改动会存为本地覆盖，原始词库保持不变。辨析、案例、规则按你的要求只放在内容类型里，不再参与这三个维度。';
+    note.textContent = '表达功能、使用场景、词性的默认值来自词库原始分类；在词条详情里改动会存为本地覆盖，原始词库保持不变。辨析、案例、规则按你的要求只放在内容类型里，不再参与这三个维度。词库原有的「领域与主题标签」与使用场景语义重叠，已从分类管理中移除，仅在表达取用台保留为题材检索。';
     wrap.appendChild(note);
     list.innerHTML = ''; list.appendChild(wrap);
   }
