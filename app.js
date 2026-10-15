@@ -5,6 +5,10 @@
   const LS_MINE = 'vocab_mine_v1';
   const LS_CUSTOM_TAGS = 'vocab_custom_tags_v1';
   const LS_ENTRY_TAGS = 'vocab_entry_tags_v1';
+  // 分类覆盖层：表达功能/使用场景/词性可多值，词条字段可本地改；均不写回 data.js
+  const LS_TAXONOMY = 'vocab_taxonomy_overrides_v1';
+  const LS_EDITS = 'vocab_entry_edits_v1';
+  const LS_EXTRA = 'vocab_extra_items_v1';
   const MASTERY = ['未用', '偶尔', '熟练'];
 
   const VOCAB = window.VOCAB || [];
@@ -66,7 +70,7 @@
   let state = {};
   let mine = {};
   let sbUrl = 'https://buzfmugezbemyfdmbgyt.supabase.co', sbKey = 'sb_publishable_HvD6YPPY-RpHLRicuoobSw_aSw1B_Ow', sbOn = true;
-  const filters = { status: 'all', mastery: 'all', tier: 'all', use: 'all', scene: 'all', pos: 'all', role: 'all', function: 'all', customTag: 'all', q: '' };
+  const filters = { type: 'all', status: 'all', mastery: 'all', tier: 'all', use: 'all', scene: 'all', pos: 'all', role: 'all', function: 'all', customTag: 'all', q: '' };
   const desk = { q: '', use: 'all', topic: 'all', domain: 'all' };
   const deskOpen = new Set();   // 取用台内已展开详情的条目 id
   const openIds = new Set();
@@ -138,6 +142,94 @@
   function tagsForWord(entry) { return entryTags[String(entry.id)] || []; }
   function saveCustomTags() { try { localStorage.setItem(LS_CUSTOM_TAGS, JSON.stringify(customTags)); } catch (e) {} }
   function saveEntryTags() { try { localStorage.setItem(LS_ENTRY_TAGS, JSON.stringify(entryTags)); } catch (e) {} }
+
+  /* ---------- 分类覆盖层：一条内容可同时归属多个表达功能与使用场景 ---------- */
+  let taxOverrides = {}, entryEdits = {};
+  try { taxOverrides = JSON.parse(localStorage.getItem(LS_TAXONOMY)) || {}; } catch (e) { taxOverrides = {}; }
+  try { entryEdits = JSON.parse(localStorage.getItem(LS_EDITS)) || {}; } catch (e) { entryEdits = {}; }
+  function saveTaxonomy() { try { localStorage.setItem(LS_TAXONOMY, JSON.stringify(taxOverrides)); } catch (e) {} }
+  function saveEdits() { try { localStorage.setItem(LS_EDITS, JSON.stringify(entryEdits)); } catch (e) {} }
+  // 参与功能/场景/词性分类的内容类型（辨析、案例、规则只在「内容类型」里出现）
+  function isTaxonomized(w) { return SCENE_TABS.indexOf(tabOf(w)) >= 0; }
+  function overrideOf(w) { return taxOverrides[String(w.id)] || null; }
+  function posOf(w) {
+    const o = overrideOf(w); if (o && o.pos) return o.pos;
+    if (!isTaxonomized(w)) return '';
+    return wordClassOf(w);
+  }
+  function functionsOf(w) {
+    const o = overrideOf(w); if (o && o.func) return o.func;
+    if (!isTaxonomized(w)) return [];
+    const f = expressionFunctionOf(w);
+    return f === '❓ 待整理' ? [] : [f];
+  }
+  function scenesOf(w) {
+    const o = overrideOf(w); if (o && o.scene) return o.scene;
+    if (!isTaxonomized(w)) return [];
+    const s = subcategoryOf(w);
+    return (!s || s === '❓ 待整理') ? [] : [s];
+  }
+  function setOverride(id, patch) {
+    const k = String(id); const cur = taxOverrides[k] || {};
+    for (const key of Object.keys(patch)) {
+      const v = patch[key];
+      if (v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length)) delete cur[key];
+      else cur[key] = v;
+    }
+    if (!Object.keys(cur).length) delete taxOverrides[k]; else taxOverrides[k] = cur;
+    saveTaxonomy();
+  }
+  // 基于「当前生效值」做增删，保证勾选新值时原有派生值不丢
+  function toggleTaxonomyValue(id, field, value) {
+    const w = VOCAB.find(x => x.id === id); if (!w) return [];
+    const cur = field === 'func' ? functionsOf(w) : scenesOf(w);
+    const list = cur.slice();
+    const i = list.indexOf(value);
+    if (i >= 0) list.splice(i, 1); else list.push(value);
+    const patch = {}; patch[field] = list; setOverride(id, patch);
+    return list;
+  }
+  // 词性为单值：再次点击同一值即清除覆盖、回退派生值
+  function setTaxonomyPos(id, value) {
+    const w = VOCAB.find(x => x.id === id); if (!w) return '';
+    const patch = { pos: (posOf(w) === value) ? '' : value };
+    setOverride(id, patch);
+    return patch.pos ? value : wordClassOf(w);
+  }
+  // 词条字段本地编辑（渲染时覆盖，不改 data.js）
+  function wordView(w) {
+    const e = entryEdits[String(w.id)];
+    if (!e) return w;
+    const merged = Object.assign({}, w);
+    for (const k of ['word', 'syn', 'mean', 'example', 'scene', 'tier']) if (typeof e[k] === 'string') merged[k] = e[k];
+    if (Array.isArray(e.use) && e.use.length) merged.use = e.use;
+    return merged;
+  }
+  function isEdited(w) { return !!entryEdits[String(w.id)]; }
+
+  /* ---------- 自建条目：批量导入的新内容并入 VOCAB（id 用 9 段，避开 data.js） ---------- */
+  let extraItems = [];
+  try { extraItems = JSON.parse(localStorage.getItem(LS_EXTRA)) || []; } catch (e) { extraItems = []; }
+  if (extraItems.length) {
+    const seen = {};
+    for (const w of VOCAB) seen[w.id] = 1;
+    const add = [];
+    for (const it of extraItems) {
+      let id = Number(it.id);
+      if (!id || seen[id]) id = 900000 + add.length + 1;
+      seen[id] = 1;
+      add.push(Object.assign({ tab: 'vocab', syn: '', mean: '', example: '', scene: '', tier: '备用', use: ['❓ 待定'], cat: '01-观点与论述' }, it, { id: id }));
+    }
+    extraItems = add;
+    for (const it of add) VOCAB.push(it);
+  }
+  function saveExtraItems() { try { localStorage.setItem(LS_EXTRA, JSON.stringify(extraItems)); } catch (e) {} }
+  function nextExtraId() {
+    let max = 900000;
+    for (const w of VOCAB) if (w.id > max && w.id < 999999) max = w.id;
+    return max + 1;
+  }
+
   try { const c = JSON.parse(localStorage.getItem(LS_SB)); if (c && c.url && c.key) { sbUrl = c.url; sbKey = c.key; } } catch (e) {}
   sbOn = !!(sbUrl && sbKey);
 
@@ -418,8 +510,12 @@
   const list = document.getElementById('list');
   function visibleWords() {
     const q = filters.q.trim();
-    let arr = VOCAB.filter(w => {
-      if (tabOf(w) !== currentTab) return false;
+    const inLibrary = currentTab === 'library';
+    const inTab = !inLibrary && TABS.some(t => t.id === currentTab);
+    let arr = VOCAB.filter(raw => {
+      const w = wordView(raw);
+      if (inLibrary) { if (filters.type !== 'all' && tabOf(w) !== filters.type) return false; }
+      else if (inTab) { if (tabOf(w) !== currentTab) return false; }
       const rec = getRec(w.id);
       if (filters.status === 'unused' && rec.count > 0) return false;
       if (filters.status === 'used' && rec.count === 0) return false;
@@ -427,11 +523,12 @@
       if (filters.status === 'sham' && !(rec.count >= 3 && rec.mastery !== '熟练')) return false;
       if (filters.mastery !== 'all' && rec.mastery !== filters.mastery) return false;
       if (filters.tier !== 'all' && w.tier !== filters.tier) return false;
-      if (currentTab === 'vocab' && filters.pos !== 'all' && wordClassOf(w) !== filters.pos) return false;
-      if (currentTab === 'vocab' && filters.role !== 'all' && expressionFunctionOf(w) !== filters.role) return false;
+      // 分类维度统一走多值版本：一条内容可同时命中多个表达功能 / 使用场景
+      if (filters.pos !== 'all' && posOf(w) !== filters.pos) return false;
+      if (filters.role !== 'all' && functionsOf(w).indexOf(filters.role) < 0) return false;
       if (filters.use !== 'all' && (w.use || []).indexOf(filters.use) < 0) return false;
-      if (SCENE_TABS.includes(currentTab) && filters.scene !== 'all' && subcategoryOf(w) !== filters.scene) return false;
-      if (SCENE_TABS.includes(currentTab) && filters.customTag !== 'all' && !tagsForWord(w).includes(filters.customTag)) return false;
+      if (filters.scene !== 'all' && scenesOf(w).indexOf(filters.scene) < 0) return false;
+      if (filters.customTag !== 'all' && !tagsForWord(w).includes(filters.customTag)) return false;
       if (q && matchScore(w, q) < 0) return false;
       return true;
     });
@@ -575,12 +672,13 @@
     d.appendChild(mb);
     return d;
   }
-  function cardEl(w) {
+  function cardEl(raw) {
+    const w = wordView(raw);
     const rec = getRec(w.id);
     const open = openIds.has(w.id);
     const q = filters.q.trim();
     const div = document.createElement('div');
-    div.className = 'word' + (open ? ' open' : '') + (rec.count > 0 ? ' has-count' : '') + ' m-' + rec.mastery;
+    div.className = 'word' + (open ? ' open' : '') + (rec.count > 0 ? ' has-count' : '') + ' m-' + rec.mastery + (isEdited(w) ? ' locally-edited' : '');
     const cbtn = document.createElement('button');
     cbtn.type = 'button';
     cbtn.className = 'checkin-btn' + (isToday(rec.last_used) ? ' today' : '');
@@ -591,9 +689,19 @@
     const lastStr = lastUsedStr(rec.last_used);
     const extra = subUses(w).map(u => `<span class="utag">${esc(u)}</span>`).join('');
     const myDot = mine[w.id] && mine[w.id].text ? '<span class="mydot" title="我写过例句">✎</span>' : '';
+    // 折叠时也能看到分类归属：内容类型 + 表达功能 + 场景
+    const taxBits = [];
+    if (isTaxonomized(w)) {
+      for (const f of functionsOf(w)) taxBits.push('<span class="tax-mini tf">' + esc(f) + '</span>');
+      for (const s of scenesOf(w)) taxBits.push('<span class="tax-mini ts">' + esc(s) + '</span>');
+    } else {
+      taxBits.push('<span class="tax-mini tt">' + esc(tabName(tabOf(w))) + '</span>');
+    }
+    if (posOf(w)) taxBits.push('<span class="tax-mini tp">' + esc(posOf(w)) + '</span>');
     tap.innerHTML = `<div class="w-text">${w.tab === "phr" ? phrBold(esc(w.word)) : highlight(w.word, q)}${myDot}</div>` +
       (w.syn ? `<div class="w-sub">${highlight(w.syn, q)}</div>` : '') +
-      (extra || lastStr ? `<div class="w-foot">${extra}${lastStr ? `<span class="w-last">${esc(lastStr)}</span>` : ''}</div>` : '');
+      (extra || lastStr ? `<div class="w-foot">${extra}${lastStr ? `<span class="w-last">${esc(lastStr)}</span>` : ''}</div>` : '') +
+      (taxBits.length ? `<div class="w-tax">${taxBits.join('')}</div>` : '');
     tap.addEventListener('click', () => { open ? openIds.delete(w.id) : openIds.add(w.id); render(); });
     const exp = document.createElement('button'); exp.type = 'button'; exp.className = 'expand-btn';
     exp.innerHTML = open
@@ -604,7 +712,9 @@
     div.appendChild(cbtn); div.appendChild(tap); div.appendChild(exp);
     if (open) {
       const detail = buildDetail(w, rec);
-      if (SCENE_TABS.includes(w.tab)) detail.appendChild(renderCustomTagEditor(w));
+      detail.appendChild(renderTaxonomyEditor(w));
+      detail.appendChild(renderCustomTagEditor(w));
+      detail.appendChild(renderEntryEditor(w));
       div.appendChild(detail);
     }
     return div;
@@ -628,10 +738,10 @@
   }
   function render() {
     const pageTitle = document.getElementById('pageTitle');
-    const titles = { home: '首页', desk: '表达取用台', today: '今日打卡', categories: '分类管理', review: '复习训练', stats: '学习统计' };
+    const titles = { home: '首页', library: '我的词库', desk: '表达取用台', today: '今日打卡', categories: '分类管理', review: '复习训练', stats: '学习统计' };
     if (pageTitle) pageTitle.textContent = titles[currentTab] || tabName(currentTab);
     document.body.classList.toggle('on-home', ['home', 'desk'].includes(currentTab));
-    document.body.classList.toggle('on-library', TABS.some(t => t.id === currentTab));
+    document.body.classList.toggle('on-library', currentTab === 'library' || TABS.some(t => t.id === currentTab));
     document.body.classList.toggle('on-new-page', ['today', 'categories', 'review', 'stats'].includes(currentTab));
     if (currentTab === 'home') {
       document.body.classList.add('on-home');
@@ -649,19 +759,45 @@
     renderLibraryPage();
     updateStats(); renderTabs(); renderUseFilter(); updateToggleAll(); updateReviewBtn();
   }
-  function currentVocab() { return TABS.some(t => t.id === currentTab) ? tabVocab(currentTab) : VOCAB; }
+  function currentVocab() { return currentTab === 'library' ? VOCAB : (TABS.some(t => t.id === currentTab) ? tabVocab(currentTab) : VOCAB); }
   function resetLibraryFilters() {
     filters.status = 'all'; filters.mastery = 'all'; filters.tier = 'all'; filters.use = 'all';
     filters.scene = 'all'; filters.pos = 'all'; filters.role = 'all'; filters.customTag = 'all'; filters.q = '';
     const search = document.getElementById('search'); if (search) search.value = '';
   }
-  function navigate(id) {
+  // 内容类型（vocab/phr/…）不再是独立页面，统一进「我的词库」并转成类型筛选
+  function navigate(id, keepType) {
+    if (TABS.some(t => t.id === id)) {
+      navigateLibrary(keepType ? filters.type : id);
+      return;
+    }
     currentTab = id;
     selectedWordId = null;
     try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
     resetLibraryFilters();
     syncChips();
     closeSidebar();
+    render();
+  }
+  function navigateLibrary(typeId) {
+    currentTab = 'library';
+    selectedWordId = null;
+    try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
+    filters.type = typeId || 'all';
+    resetLibraryFiltersKeepType();
+    syncChips();
+    closeSidebar();
+    render();
+  }
+  function resetLibraryFiltersKeepType() {
+    const keep = filters.type;
+    resetLibraryFilters();
+    filters.type = keep;
+  }
+  // 供各页「跳到某条内容」使用：进词库、限定内容类型、自动展开该条
+  function openInLibrary(w) {
+    navigateLibrary(tabOf(w));
+    openIds.add(w.id);
     render();
   }
   function pageHeading(title, subtitle) {
@@ -672,16 +808,56 @@
   function renderLibraryPage() {
     const words = visibleWords();
     const page = document.createElement('div'); page.className = 'library-page';
-    page.appendChild(pageHeading(tabName(currentTab), '\u5171 ' + tabVocab(currentTab).length + ' \u6761\uff1b\u70b9\u51fb\u8bcd\u6761\u5c55\u5f00\u8be6\u60c5'));
+    page.appendChild(pageHeading('我的词库', '共 ' + VOCAB.length + ' 条内容（词汇 / 短语 / 句式 / 表达）；点词条可展开详情、编辑与打标签'));
+
+    // 内容类型切换
+    const typeRow = document.createElement('div'); typeRow.className = 'library-type-row';
+    const mkType = (id, name, count) => {
+      const b = document.createElement('button'); b.type = 'button';
+      b.className = 'type-chip' + (filters.type === id ? ' active' : '');
+      b.innerHTML = esc(name) + '<b>' + count + '</b>';
+      b.addEventListener('click', () => { filters.type = (filters.type === id ? 'all' : id); render(); });
+      typeRow.appendChild(b);
+    };
+    mkType('all', '全部', VOCAB.length);
+    for (const t of TABS) mkType(t.id, t.icon + ' ' + t.name, tabVocab(t.id).length);
+    page.appendChild(typeRow);
+
+    // 批量操作
+    const ops = document.createElement('div'); ops.className = 'library-ops';
+    const expAll = document.createElement('button'); expAll.type = 'button'; expAll.className = 'btn-ghost';
+    expAll.textContent = '⇩ 导出全部';
+    expAll.addEventListener('click', () => exportLibrary('all'));
+    const expFiltered = document.createElement('button'); expFiltered.type = 'button'; expFiltered.className = 'btn-ghost';
+    expFiltered.textContent = '⇩ 导出当前筛选';
+    expFiltered.addEventListener('click', () => exportLibrary('filtered'));
+    const impBtn = document.createElement('button'); impBtn.type = 'button'; impBtn.className = 'btn-primary';
+    impBtn.textContent = '⇧ 批量导入';
+    const impFile = document.createElement('input'); impFile.type = 'file'; impFile.accept = 'application/json,.json'; impFile.hidden = true;
+    impBtn.addEventListener('click', () => impFile.click());
+    impFile.addEventListener('change', () => { if (impFile.files && impFile.files[0]) importLibraryFile(impFile.files[0]); impFile.value = ''; });
+    const hint = document.createElement('span'); hint.className = 'muted library-ops-hint';
+    hint.textContent = '导入支持本工具导出的 JSON：同名词条更新字段与分类，新词条直接收录';
+    ops.append(expAll, expFiltered, impBtn, impFile, hint);
+    page.appendChild(ops);
+
     const result = document.createElement('div'); result.className = 'library-result';
-    result.innerHTML = '<span>\u5f53\u524d\u663e\u793a ' + words.length + ' \u6761</span>';
+    const activeBits = [];
+    if (filters.type !== 'all') activeBits.push('内容类型：' + tabName(filters.type));
+    if (filters.role !== 'all') activeBits.push('表达功能：' + filters.role);
+    if (filters.scene !== 'all') activeBits.push('场景：' + filters.scene);
+    if (filters.pos !== 'all') activeBits.push('词性：' + filters.pos);
+    if (filters.customTag !== 'all') activeBits.push('自定义：' + filters.customTag);
+    result.innerHTML = '<span>当前显示 ' + words.length + ' 条</span>' +
+      (activeBits.length ? '<span class="library-active-filters">' + esc(activeBits.join('　·　')) + '</span>' : '');
     page.appendChild(result);
+
     const rows = document.createElement('div'); rows.className = 'library-rows library-flat-rows';
     if (words.length) {
       for (const w of words) rows.appendChild(cardEl(w));
     } else {
       const empty = document.createElement('div'); empty.className = 'empty';
-      empty.textContent = '\u6ca1\u6709\u5339\u914d\u7684\u8bcd\u6761\uff0c\u8bd5\u8bd5\u6e05\u9664\u7b5b\u9009\u6761\u4ef6\u3002';
+      empty.textContent = '没有匹配的词条，试试清除筛选条件。';
       rows.appendChild(empty);
     }
     page.appendChild(rows); list.innerHTML = ''; list.appendChild(page);
@@ -697,7 +873,7 @@
       const input = document.createElement('input'); input.type = 'checkbox'; input.checked = selected.has(tag);
       input.addEventListener('change', () => {
         const values = new Set(tagsForWord(entry)); input.checked ? values.add(tag) : values.delete(tag);
-        entryTags[String(entry.id)] = [...values]; saveEntryTags(); renderLibraryPage();
+        entryTags[String(entry.id)] = [...values]; saveEntryTags(); render();
       });
       label.append(input, document.createTextNode(tag)); chips.appendChild(label);
     }
@@ -709,9 +885,191 @@
       const tag = input.value.trim(); if (!tag) return;
       if (!customTags.includes(tag)) customTags.push(tag);
       const values = new Set(tagsForWord(entry)); values.add(tag); entryTags[String(entry.id)] = [...values];
-      saveCustomTags(); saveEntryTags(); renderLibraryPage();
+      saveCustomTags(); saveEntryTags(); render();
     });
     row.append(input, add); box.appendChild(row); return box;
+  }
+
+  /* ---------- 分类标签编辑器：表达功能 / 使用场景可多选，词性单选 ---------- */
+  const EXTRA_SCENE_VALUES = (function () {
+    const set = {};
+    for (const w of VOCAB) if (['phr', 'met', 'quote'].indexOf(tabOf(w)) >= 0 && w.cat) set[w.cat] = 1;
+    return Object.keys(set);
+  })();
+  const SCENE_VALUES = SCENE_CATEGORIES.concat(HUMOR_SCENE_CATEGORIES, EXTRA_SCENE_VALUES)
+    .filter((v, i, a) => a.indexOf(v) === i);
+  function taxChip(label, active, onClick) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'tax-chip' + (active ? ' on' : '');
+    b.textContent = label;
+    b.addEventListener('click', ev => { ev.stopPropagation(); onClick(); });
+    return b;
+  }
+  function renderTaxonomyEditor(entry) {
+    const box = document.createElement('section'); box.className = 'taxonomy-editor';
+    const head = document.createElement('div'); head.className = 'tax-head';
+    head.innerHTML = '<h3>分类标签</h3><span class="muted">一条内容可同时归属多个表达功能与使用场景</span>';
+    box.appendChild(head);
+    if (!isTaxonomized(entry)) {
+      const p = document.createElement('p'); p.className = 'muted';
+      p.textContent = '「' + tabName(tabOf(entry)) + '」按内容类型单列，不参与表达功能 / 使用场景 / 词性分类。';
+      box.appendChild(p); return box;
+    }
+    const mkRow = (title, values, isOn, onToggle) => {
+      const sec = document.createElement('div'); sec.className = 'tax-row';
+      const lab = document.createElement('span'); lab.className = 'tax-label'; lab.textContent = title;
+      const chips = document.createElement('div'); chips.className = 'tax-chips';
+      for (const v of values) chips.appendChild(taxChip(v, isOn(v), () => onToggle(v)));
+      sec.append(lab, chips); box.appendChild(sec);
+    };
+    mkRow('表达功能', EXPRESSION_FUNCTIONS, v => functionsOf(entry).indexOf(v) >= 0,
+      v => { toggleTaxonomyValue(entry.id, 'func', v); render(); });
+    mkRow('使用场景', SCENE_VALUES, v => scenesOf(entry).indexOf(v) >= 0,
+      v => { toggleTaxonomyValue(entry.id, 'scene', v); render(); });
+    mkRow('词性', WORD_CLASSES, v => posOf(entry) === v,
+      v => { setTaxonomyPos(entry.id, v); render(); });
+    return box;
+  }
+
+  /* ---------- 词条字段编辑（本地覆盖，不改 data.js） ---------- */
+  function renderEntryEditor(entry) {
+    const box = document.createElement('section'); box.className = 'entry-editor';
+    const head = document.createElement('div'); head.className = 'tax-head';
+    head.innerHTML = '<h3>编辑词条</h3><span class="muted">改动只存本机，原始词库不动</span>';
+    box.appendChild(head);
+    if (isEdited(entry)) {
+      const warn = document.createElement('p'); warn.className = 'edited-flag';
+      warn.innerHTML = '此条已本地修改。';
+      const undo = document.createElement('button'); undo.type = 'button'; undo.className = 'btn-ghost'; undo.textContent = '撤销修改';
+      undo.addEventListener('click', ev => { ev.stopPropagation(); delete entryEdits[String(entry.id)]; saveEdits(); toast('已还原为原始内容'); render(); });
+      warn.appendChild(undo); box.appendChild(warn);
+    }
+    const fields = [['word', '词条'], ['syn', '同义词'], ['mean', '释义'], ['example', '例句'], ['scene', '使用场景']];
+    const inputs = {};
+    for (const [k, label] of fields) {
+      const row = document.createElement('label'); row.className = 'edit-field';
+      const cap = document.createElement('span'); cap.textContent = label;
+      const inp = document.createElement(k === 'example' || k === 'mean' ? 'textarea' : 'input');
+      if (inp.tagName === 'INPUT') inp.type = 'text';
+      inp.value = entry[k] || '';
+      inputs[k] = inp; row.append(cap, inp); box.appendChild(row);
+    }
+    const tierRow = document.createElement('label'); tierRow.className = 'edit-field';
+    const tierCap = document.createElement('span'); tierCap.textContent = '分级';
+    const tierSel = document.createElement('select');
+    for (const t of ['核心', '进阶', '备用']) {
+      const o = document.createElement('option'); o.value = t; o.textContent = t;
+      if ((entry.tier || '备用') === t) o.selected = true;
+      tierSel.appendChild(o);
+    }
+    tierRow.append(tierCap, tierSel); box.appendChild(tierRow);
+    const save = document.createElement('button'); save.type = 'button'; save.className = 'btn-primary'; save.textContent = '保存修改';
+    save.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const patch = { tier: tierSel.value };
+      for (const [k] of fields) patch[k] = inputs[k].value.trim();
+      const base = VOCAB.find(x => x.id === entry.id) || entry;
+      const changed = Object.keys(patch).some(k => String(patch[k] || '') !== String(base[k] || ''));
+      if (!changed) { delete entryEdits[String(entry.id)]; } else { entryEdits[String(entry.id)] = patch; }
+      saveEdits(); toast(changed ? '已保存到本机' : '已还原为原始内容'); render();
+    });
+    box.appendChild(save);
+    return box;
+  }
+
+  /* ---------- 批量导入 / 导出 ---------- */
+  function downloadJSON(obj, filename) {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  }
+  function exportLibrary(scope) {
+    const words = scope === 'filtered' ? visibleWords() : VOCAB.slice();
+    if (!words.length) { toast('没有可导出的内容'); return; }
+    const payload = {
+      导出时间: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      来源: 'check-in 我的词库',
+      范围: scope === 'filtered' ? '当前筛选结果' : '全部词库',
+      条数: words.length,
+      items: words.map(w => ({
+        id: w.id, 内容类型: tabOf(w), 词条: w.word, 同义词: w.syn || '', 释义: w.mean || '',
+        例句: w.example || '', 使用场景: w.scene || '', 分级: w.tier || '备用', 用途: w.use || [],
+        词性: posOf(w), 表达功能: functionsOf(w), 场景分类: scenesOf(w), 自定义标签: tagsForWord(w)
+      }))
+    };
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadJSON(payload, '我的词库_' + (scope === 'filtered' ? '筛选结果' : '全量') + '_' + stamp + '.json');
+    toast('已导出 ' + words.length + ' 条');
+  }
+  const IMPORT_FIELDS = { 词条: 'word', word: 'word', 同义词: 'syn', syn: 'syn', 释义: 'mean', mean: 'mean', 例句: 'example', example: 'example', 使用场景: 'scene', scene: 'scene', 分级: 'tier', tier: 'tier' };
+  function importLibraryFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data; try { data = JSON.parse(String(reader.result)); } catch (e) { toast('文件不是合法 JSON'); return; }
+      const items = Array.isArray(data) ? data : (data.items || data.词库 || data.entries || []);
+      if (!Array.isArray(items) || !items.length) { toast('文件里没有可导入的条目'); return; }
+      const byId = {}, byWord = {};
+      for (const w of VOCAB) { byId[w.id] = w; byWord[String(w.word).trim()] = w; }
+      let added = 0, updated = 0, skipped = 0;
+      for (const it of items) {
+        if (!it || typeof it !== 'object') { skipped++; continue; }
+        const word = String(it.词条 || it.word || '').trim();
+        if (!word) { skipped++; continue; }
+        const exist = (it.id && byId[it.id]) || byWord[word];
+        if (exist) {
+          const patch = {};
+          for (const key of Object.keys(IMPORT_FIELDS)) {
+            if (typeof it[key] === 'string') patch[IMPORT_FIELDS[key]] = it[key].trim();
+          }
+          if (Array.isArray(it.用途)) patch.use = it.用途;
+          if (Object.keys(patch).length) {
+            const base = VOCAB.find(x => x.id === exist.id) || exist;
+            const real = {};
+            for (const k of Object.keys(patch)) if (String(patch[k] || '') !== String(base[k] || '')) real[k] = patch[k];
+            if (Object.keys(real).length) { entryEdits[String(exist.id)] = Object.assign({}, entryEdits[String(exist.id)], real); updated++; }
+          }
+          const tax = {};
+          if (it.词性) tax.pos = it.词性;
+          if (Array.isArray(it.表达功能)) tax.func = it.表达功能;
+          if (Array.isArray(it.场景分类)) tax.scene = it.场景分类;
+          if (Object.keys(tax).length) setOverride(exist.id, tax);
+          if (Array.isArray(it.自定义标签)) {
+            const values = new Set(tagsForWord(exist));
+            for (const t of it.自定义标签) { values.add(t); if (customTags.indexOf(t) < 0) customTags.push(t); }
+            entryTags[String(exist.id)] = [...values];
+          }
+        } else {
+          const item = {
+            id: (typeof it.id === 'number' && !byId[it.id]) ? it.id : nextExtraId(),
+            tab: TABS.some(t => t.id === (it.内容类型 || it.tab)) ? (it.内容类型 || it.tab) : 'vocab',
+            word: word,
+            syn: String(it.同义词 || it.syn || ''), mean: String(it.释义 || it.mean || ''),
+            example: String(it.例句 || it.example || ''), scene: String(it.使用场景 || it.scene || ''),
+            tier: ['核心', '进阶', '备用'].indexOf(it.分级 || it.tier) >= 0 ? (it.分级 || it.tier) : '备用',
+            use: Array.isArray(it.用途) && it.用途.length ? it.用途 : ['❓ 待定'],
+            cat: '01-观点与论述', topic: []
+          };
+          extraItems.push(item); VOCAB.push(item);
+          byId[item.id] = item; byWord[item.word] = item;
+          const tax = {};
+          if (it.词性) tax.pos = it.词性;
+          if (Array.isArray(it.表达功能)) tax.func = it.表达功能;
+          if (Array.isArray(it.场景分类)) tax.scene = it.场景分类;
+          if (Object.keys(tax).length) setOverride(item.id, tax);
+          if (Array.isArray(it.自定义标签)) {
+            entryTags[String(item.id)] = it.自定义标签.slice();
+            for (const t of it.自定义标签) if (customTags.indexOf(t) < 0) customTags.push(t);
+          }
+          added++;
+        }
+      }
+      saveExtraItems(); saveEdits(); saveEntryTags(); saveCustomTags();
+      toast('导入完成：新增 ' + added + ' 条，更新 ' + updated + ' 条' + (skipped ? '，跳过 ' + skipped + ' 条' : ''));
+      render();
+    };
+    reader.readAsText(file, 'utf-8');
   }
   function renderTodayPage() {
     const target = 5, count = todayCount(), pct = Math.min(100, Math.round(count / target * 100));
@@ -739,116 +1097,122 @@
   }
   function renderCategoryManager() {
     const wrap = document.createElement('div'); wrap.className = 'new-page';
-    wrap.appendChild(pageHeading('分类管理', '八个一级分类；词汇、句式、比喻、金句和幽默各自设有二级分类。'));
-    const forms = document.createElement('section'); forms.className = 'new-card';
-    forms.innerHTML = '<div class="new-card-head"><h3>一级分类</h3><span class="muted">选择分类进入词库</span></div>';
-    const renderFormCard = (t, parent) => {
-      const count = tabVocab(t.id).length; const btn = document.createElement('button'); btn.type = 'button';
-      const fixed = ['met', 'quote', 'humor'].includes(t.id);
-      btn.className = 'category-card' + (fixed ? ' protected' : '');
-      btn.innerHTML = '<span class="category-icon" style="--tc:' + t.color + '">' + t.icon + '</span><span><b>' + esc(t.name) + (fixed ? '<small>专属分类</small>' : '') + '</b><small>' + count + ' 条内容</small></span><span class="category-arrow">›</span>';
-      btn.addEventListener('click', () => navigate(t.id)); parent.appendChild(btn);
+    wrap.appendChild(pageHeading('分类管理', '分类即标签：一条内容可同时归属多个表达功能与使用场景。改动只存本机，随时可撤销，原始词库不动。'));
+    // 参与功能/场景/词性分类的只有前五类；辨析、案例、规则仅出现在「内容类型」
+    const taxScope = VOCAB.filter(isTaxonomized);
+    const moduleCard = (index, title, subtitle) => {
+      const sec = document.createElement('section'); sec.className = 'new-card cat-module';
+      sec.innerHTML = '<div class="new-card-head"><h3><span class="module-index">' + index + '</span>' + esc(title) + '</h3><span class="muted">' + esc(subtitle) + '</span></div>';
+      wrap.appendChild(sec); return sec;
     };
-    const renderFamily = (title, subtitle, ids) => {
-      const family = document.createElement('section'); family.className = 'form-family';
-      family.innerHTML = '<h4>' + esc(title) + '</h4><p>' + esc(subtitle) + '</p>';
-      const familyGrid = document.createElement('div'); familyGrid.className = 'category-grid form-grid';
-      for (const id of ids) renderFormCard(TABS.find(t => t.id === id), familyGrid);
-      family.appendChild(familyGrid); forms.appendChild(family);
-      const mainId = ids[0];
-      if (SCENE_TABS.includes(mainId)) {
-        const subTitle = document.createElement('div'); subTitle.className = 'muted'; subTitle.textContent = '二级分类';
-        family.appendChild(subTitle);
-        const subs = document.createElement('div'); subs.className = 'category-grid';
-        for (const sub of subcategoriesForTab(mainId)) {
-          const count = tabVocab(mainId).filter(w => subcategoryOf(w) === sub).length;
-          const b = document.createElement('button'); b.type = 'button'; b.className = 'use-card';
-          b.innerHTML = '<span>' + esc(sub) + '</span><b>' + count + '</b>';
-          b.addEventListener('click', () => { navigate(mainId); filters.scene = sub; render(); });
-          subs.appendChild(b);
-        }
-        family.appendChild(subs);
-      }
+    const goLibrary = (patch) => {
+      currentTab = 'library';
+      try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
+      resetLibraryFilters();
+      for (const k of Object.keys(patch)) filters[k] = patch[k];
+      syncChips(); closeSidebar(); render();
     };
-    renderFamily('词汇', '词汇按场景细分', ['vocab']);
-    renderFamily('句式', '按原有句式类型细分', ['phr']);
-    renderFamily('比喻', '独立一级分类，按原有主题细分', ['met']);
-    renderFamily('金句', '独立一级分类，按原有主题细分', ['quote']);
-    renderFamily('幽默', '独立一级分类，按使用场景细分', ['humor']);
-    renderFamily('辨析', '近义词辨析', ['diff']);
-    renderFamily('案例', '案例素材', ['cases']);
-    renderFamily('规则', '写作规则', ['rule']);
-    wrap.appendChild(forms);
-    const uses = document.createElement('section'); uses.className = 'new-card';
-    uses.innerHTML = '<div class="new-card-head"><h3>\u8bcd\u6c47\u5206\u7c7b\u7ef4\u5ea6</h3><span class="muted">\u8bcd\u6027\u3001\u8868\u8fbe\u4f5c\u7528\u4e0e\u573a\u666f\u5206\u522b\u7b5b\u9009\uff1b\u672a\u660e\u786e\u7684\u6761\u76ee\u5148\u5f85\u6574\u7406</span></div>';
-    const addDimensionCards = (title, values, getter, filterKey) => {
-      const group = document.createElement('div'); group.className = 'form-family';
-      group.innerHTML = '<h4>' + esc(title) + '</h4>';
+    const valueGrid = (values, countOf, onPick, subOf) => {
       const grid = document.createElement('div'); grid.className = 'category-grid';
-      for (const value of values) {
-        const n = VOCAB.filter(w => tabOf(w) === 'vocab' && getter(w) === value).length;
-        if (!n) continue;
-        const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'use-card';
-        btn.innerHTML = '<span>' + esc(value) + '</span><b>' + n + '</b>';
-        btn.addEventListener('click', () => { navigate('vocab'); filters[filterKey] = value; render(); });
-        grid.appendChild(btn);
+      for (const v of values) {
+        const n = countOf(v);
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'use-card';
+        b.innerHTML = '<span>' + esc(v) + '</span><b>' + n + '</b>';
+        b.title = n ? '查看这 ' + n + ' 条' : '暂无内容';
+        b.addEventListener('click', () => onPick(v));
+        if (subOf) {
+          const subs = subOf(v);
+          if (subs && subs.length) {
+            const row = document.createElement('div'); row.className = 'value-subs';
+            for (const s of subs) { const t = document.createElement('span'); t.className = 'sub-tag'; t.textContent = s; row.appendChild(t); }
+            b.appendChild(row);
+          }
+        }
+        grid.appendChild(b);
       }
-      group.appendChild(grid); uses.appendChild(group);
+      return grid;
     };
-    addDimensionCards('\u8bcd\u6027', WORD_CLASSES, wordClassOf, 'pos');
-    const functionGroup = document.createElement('div'); functionGroup.className = 'form-family';
-    functionGroup.innerHTML = '<h4>\u8868\u8fbe\u529f\u80fd\uff08\u4e00\u7ea7 / \u4e8c\u7ea7\uff09</h4><p>\u5b50\u7c7b\u5148\u4f5c\u76ee\u5f55\u7ed3\u6784\uff0c\u8bcd\u6761\u5f52\u5c5e\u5f85\u9010\u6761\u6574\u7406</p>';
-    const functionTree = document.createElement('div'); functionTree.className = 'function-tree';
-    for (const value of EXPRESSION_FUNCTIONS) {
-      const n = VOCAB.filter(w => tabOf(w) === 'vocab' && expressionFunctionOf(w) === value).length;
-      const branch = document.createElement('div'); branch.className = 'function-branch';
-      const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'use-card function-parent';
-      btn.innerHTML = '<span>' + esc(value) + '</span><b>' + n + '</b>';
-      btn.addEventListener('click', () => { navigate('vocab'); filters.role = value; render(); });
-      branch.appendChild(btn);
-      const children = document.createElement('div'); children.className = 'function-children';
-      for (const child of (EXPRESSION_SUBCATEGORIES[value] || [])) {
-        const tag = document.createElement('span'); tag.className = 'function-child'; tag.textContent = child; children.appendChild(tag);
-      }
-      if (!children.childElementCount) { const pending = document.createElement('span'); pending.className = 'function-child pending'; pending.textContent = '\u6682\u65e0\u4e8c\u7ea7\u9879'; children.appendChild(pending); }
-      branch.appendChild(children); functionTree.appendChild(branch);
+
+    /* 1. 内容类型 */
+    const typeCard = moduleCard(1, '内容类型', '八类内容，全部收录在「我的词库」里');
+    const typeGrid = document.createElement('div'); typeGrid.className = 'category-grid';
+    for (const t of TABS) {
+      const n = tabVocab(t.id).length;
+      const solo = SCENE_TABS.indexOf(t.id) < 0;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'category-card';
+      b.innerHTML = '<span class="category-icon" style="--tc:' + t.color + '">' + t.icon + '</span><span><b>' + esc(t.name) +
+        (solo ? '<small>仅内容类型</small>' : '') + '</b><small>' + n + ' 条内容</small></span><span class="category-arrow">›</span>';
+      b.addEventListener('click', () => goLibrary({ type: t.id }));
+      typeGrid.appendChild(b);
     }
-    functionGroup.appendChild(functionTree); uses.appendChild(functionGroup);
-    wrap.appendChild(uses);
-    const tagValues = new Set(); for (const w of VOCAB) if (SCENE_TABS.includes(tabOf(w))) for (const tag of (w.topic || [])) tagValues.add(tag);
-    const tagCard = document.createElement('section'); tagCard.className = 'new-card';
-    tagCard.innerHTML = '<div class="new-card-head"><h3>领域与主题标签</h3><span class="muted">作为辅助筛选</span></div>';
-    const tagGrid = document.createElement('div'); tagGrid.className = 'category-grid';
-    for (const tag of [...tagValues].sort((a,b) => a.localeCompare(b, 'zh-CN'))) {
-      const n = VOCAB.filter(w => SCENE_TABS.includes(tabOf(w)) && (w.topic || []).includes(tag)).length;
-      const item = document.createElement('div'); item.className = 'use-card'; item.innerHTML = '<span>' + esc(tag) + '</span><b>' + n + '</b>'; tagGrid.appendChild(item);
-    }
-    tagCard.appendChild(tagGrid); wrap.appendChild(tagCard);
-    const customCard = document.createElement('section'); customCard.className = 'new-card';
-    customCard.innerHTML = '<div class="new-card-head"><h3>自定义标签</h3><span class="muted">在词条详情中添加或移除</span></div>';
+    typeCard.appendChild(typeGrid);
+
+    /* 2. 表达功能 */
+    const funcCard = moduleCard(2, '表达功能', '覆盖词汇 / 句式 / 比喻 / 金句 / 幽默；可多选');
+    funcCard.appendChild(valueGrid(EXPRESSION_FUNCTIONS,
+      v => taxScope.filter(w => functionsOf(w).indexOf(v) >= 0).length,
+      v => goLibrary({ role: v, type: 'all' }),
+      v => EXPRESSION_SUBCATEGORIES[v]));
+
+    /* 3. 使用场景 */
+    const sceneCard = moduleCard(3, '使用场景', '覆盖词汇 / 句式 / 比喻 / 金句 / 幽默；可多选');
+    sceneCard.appendChild(valueGrid(SCENE_VALUES,
+      v => taxScope.filter(w => scenesOf(w).indexOf(v) >= 0).length,
+      v => goLibrary({ scene: v, type: 'all' })));
+
+    /* 4. 词性 */
+    const posCard = moduleCard(4, '词性', '单选；点一下设为该词性，再点取消');
+    posCard.appendChild(valueGrid(WORD_CLASSES,
+      v => taxScope.filter(w => posOf(w) === v).length,
+      v => goLibrary({ pos: v, type: 'all' })));
+
+    /* 5. 自定义标签 */
+    const tagCard = moduleCard(5, '自定义标签', '自己定义的标签，随词条保存');
     const createRow = document.createElement('div'); createRow.className = 'custom-tag-create';
-    const tagInput = document.createElement('input'); tagInput.type = 'text'; tagInput.maxLength = 20; tagInput.placeholder = '例如：想练习、适合开头';
-    const createButton = document.createElement('button'); createButton.type = 'button'; createButton.className = 'btn-ghost'; createButton.textContent = '新建标签';
+    const tagInput = document.createElement('input'); tagInput.type = 'text'; tagInput.maxLength = 20;
+    tagInput.placeholder = '例如：想练习、适合开头';
+    const createButton = document.createElement('button'); createButton.type = 'button';
+    createButton.className = 'btn-ghost'; createButton.textContent = '新建标签';
     createButton.addEventListener('click', () => {
       const value = tagInput.value.trim(); if (!value) return;
       if (!customTags.includes(value)) { customTags.push(value); saveCustomTags(); }
       renderCategoryManager();
     });
-    createRow.append(tagInput, createButton); customCard.appendChild(createRow);
+    createRow.append(tagInput, createButton); tagCard.appendChild(createRow);
     const customGrid = document.createElement('div'); customGrid.className = 'category-grid custom-tag-categories';
-    if (!customTags.length) { const emptyTags = document.createElement('p'); emptyTags.className = 'muted'; emptyTags.textContent = '暂无自定义标签'; customGrid.appendChild(emptyTags); }
+    if (!customTags.length) {
+      const emptyTags = document.createElement('p'); emptyTags.className = 'muted';
+      emptyTags.textContent = '暂无自定义标签。在词条详情里也能直接新建并打标。';
+      customGrid.appendChild(emptyTags);
+    }
     for (const tag of customTags) {
-      const n = VOCAB.filter(w => SCENE_TABS.includes(tabOf(w)) && tagsForWord(w).includes(tag)).length;
+      const n = VOCAB.filter(w => tagsForWord(w).indexOf(tag) >= 0).length;
       const item = document.createElement('button'); item.type = 'button'; item.className = 'use-card';
       item.innerHTML = '<span>' + esc(tag) + '</span><b>' + n + '</b>';
-      item.addEventListener('click', () => {
-        const target = VOCAB.find(w => SCENE_TABS.includes(tabOf(w)) && tagsForWord(w).includes(tag));
-        if (!target) return;
-        navigate(tabOf(target)); filters.customTag = tag; render();
-      }); customGrid.appendChild(item);
+      item.addEventListener('click', () => goLibrary({ customTag: tag, type: 'all' }));
+      customGrid.appendChild(item);
     }
-    customCard.appendChild(customGrid); wrap.appendChild(customCard);
-    const note = document.createElement('p'); note.className = 'taxonomy-note'; note.textContent = '八个一级分类各自独立；词汇保留原有类别，句式、比喻、金句按原有子类浏览，幽默按使用场景细分。领域主题和自定义标签仅作辅助筛选。'; wrap.appendChild(note);
+    tagCard.appendChild(customGrid);
+
+    /* 附加：领域与主题标签（保留原有辅助筛选） */
+    const tagValues = [];
+    for (const w of taxScope) for (const t of (w.topic || [])) if (tagValues.indexOf(t) < 0) tagValues.push(t);
+    if (tagValues.length) {
+      const domainCard = document.createElement('section'); domainCard.className = 'new-card';
+      domainCard.innerHTML = '<div class="new-card-head"><h3>领域与主题标签</h3><span class="muted">词库自带的辅助筛选，不参与上面的分类</span></div>';
+      const grid = document.createElement('div'); grid.className = 'category-grid';
+      for (const tag of tagValues.sort((a, b) => a.localeCompare(b, 'zh-CN'))) {
+        const n = taxScope.filter(w => (w.topic || []).indexOf(tag) >= 0).length;
+        const item = document.createElement('div'); item.className = 'use-card';
+        item.innerHTML = '<span>' + esc(tag) + '</span><b>' + n + '</b>';
+        grid.appendChild(item);
+      }
+      domainCard.appendChild(grid); wrap.appendChild(domainCard);
+    }
+
+    const note = document.createElement('p'); note.className = 'taxonomy-note';
+    note.textContent = '表达功能、使用场景、词性的默认值来自词库原始分类；在词条详情里改动会存为本地覆盖，原始词库保持不变。辨析、案例、规则按你的要求只放在内容类型里，不再参与这三个维度。';
+    wrap.appendChild(note);
     list.innerHTML = ''; list.appendChild(wrap);
   }
   function renderReviewPage() {
@@ -1088,7 +1452,7 @@
       b.innerHTML = '<div class="bl-top"><span class="bl-name">⚠️ 看了 3 次以上却还没标「熟练」</span><span class="bl-num">' + sham + ' 条</span></div>' +
         '<div class="bl-sub">反复翻看≠记住。点开逐条自测，能默写出例句再标熟练。</div>';
       b.addEventListener('click', () => {
-        currentTab = 'vocab'; resetLibraryFilters(); filters.status = 'sham';
+        currentTab = 'library'; resetLibraryFilters(); filters.status = 'sham';
         try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
         syncChips(); closeSidebar(); render();
       });
@@ -1364,35 +1728,24 @@
   function renderTabs() {
     const el = document.getElementById('tabs'); if (!el) return;
     el.innerHTML = '';
-    const addLabel = text => { const x = document.createElement('div'); x.className = 'nav-label'; x.textContent = text; el.appendChild(x); };
-    const addPage = (id, icon, name) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'tab tab-home' + (currentTab === id ? ' active' : '');
-      b.innerHTML = '<span class="t-ico">' + icon + '</span><span class="t-name">' + name + '</span>';
-      b.addEventListener('click', () => navigate(id)); el.appendChild(b);
-    };
-    addPage('home', '🏠', '首页'); addPage('today', '✅', '今日打卡'); addPage('review', '🧠', '复习训练'); addPage('stats', '📊', '学习统计');
-    const addVocabTab = (t, child) => {
-      const v = tabVocab(t.id);
-      let d = 0, sum = 0;
-      for (const w of v) { if (state[w.id] && state[w.id].count > 0) d++; sum += state[w.id] ? (state[w.id].count || 0) : 0; }
-      const b = document.createElement('button');
-      b.className = 'tab' + (child ? ' tab-child' : '') + (t.id === currentTab ? ' active' : '');
-      b.style.setProperty('--tc', t.color);
-      const protectedTab = ['met', 'quote', 'humor'].includes(t.id);
-      b.innerHTML = `<span class="t-ico">${t.icon}</span><span class="t-name">${t.name}</span><span class="t-count">${d}<small>/${v.length}</small></span>` + (protectedTab ? '<span class="nav-lock" title="独立保留的专属分类">◆</span>' : '') + `<small class="t-sum">${sum}次</small>`;
-      b.addEventListener('click', () => navigate(t.id));
+    const addPage = (id, icon, name, count) => {
+      const b = document.createElement('button'); b.type = 'button';
+      b.className = 'tab' + (currentTab === id ? ' active' : '');
+      b.innerHTML = '<span class="t-ico">' + icon + '</span><span class="t-name">' + name + '</span>' +
+        (count != null ? '<span class="t-count">' + count + '</span>' : '');
+      b.addEventListener('click', () => navigate(id));
       el.appendChild(b);
     };
-    addLabel('词汇'); addVocabTab(TABS.find(t => t.id === 'vocab'), false);
-    addLabel('句式'); addVocabTab(TABS.find(t => t.id === 'phr'), false);
-    addLabel('比喻'); addVocabTab(TABS.find(t => t.id === 'met'), false);
-    addLabel('金句'); addVocabTab(TABS.find(t => t.id === 'quote'), false);
-    addLabel('幽默'); addVocabTab(TABS.find(t => t.id === 'humor'), false);
-    addLabel('辨析'); addVocabTab(TABS.find(t => t.id === 'diff'), false);
-    addLabel('案例'); addVocabTab(TABS.find(t => t.id === 'cases'), false);
-    addLabel('规则'); addVocabTab(TABS.find(t => t.id === 'rule'), false);
-    addLabel('工具');
-    addPage('categories', '🗂️', '分类管理'); addPage('desk', '🎯', '表达取用台');
+    const addLabel = text => { const x = document.createElement('div'); x.className = 'nav-label'; x.textContent = text; el.appendChild(x); };
+    let doneAll = 0;
+    for (const w of VOCAB) if (state[w.id] && state[w.id].count > 0) doneAll++;
+    addPage('home', '\ud83c\udfe0', '首页');
+    addPage('today', '\u2705', '今日打卡');
+    addPage('library', '\ud83d\udcda', '我的词库', doneAll + '/' + VOCAB.length);
+    addPage('categories', '\ud83d\uddd2', '分类管理');
+    addPage('desk', '\ud83c\udfaf', '表达取用台');
+    addPage('review', '\ud83e\udde0', '复习训练');
+    addPage('stats', '\ud83d\udcca', '学习统计');
     addLabel('其他工具');
     const addModTab = (id, icon, name) => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'tab';
@@ -1401,7 +1754,7 @@
       b.addEventListener('click', () => { if (window.showMod) window.showMod(id); });
       el.appendChild(b);
     };
-    addModTab('sleep', '🌙', '早睡'); addModTab('method', '💡', '底层框架');
+    addModTab('sleep', '\ud83c\udf19', '早睡'); addModTab('method', '\ud83d\udca1', '底层框架');
   }
   function switchModule(id) {
     document.querySelectorAll('.module').forEach(m => { m.hidden = m.id !== 'mod-' + id; });
@@ -1409,94 +1762,41 @@
     closeSidebar();
     if (id === 'writing') render();
   }
+  // 统计口径：当前内容类型范围内的全部条目
+  function scopeWords() {
+    if (currentTab === 'library') return filters.type === 'all' ? VOCAB : VOCAB.filter(w => tabOf(w) === filters.type);
+    if (TABS.some(t => t.id === currentTab)) return tabVocab(currentTab);
+    return VOCAB;
+  }
+  // 五个分类维度统一成可点选的筛选行：表达功能 / 使用场景 / 词性 / 自定义标签 / 用途
   function renderUseFilter() {
     const cf = document.getElementById('catFilter'); if (!cf) return;
     cf.innerHTML = '';
-    if (SCENE_TABS.includes(currentTab)) {
-      const addInfoLine = (label, values, getter) => {
-        const line = document.createElement('div'); line.className = 'facet-line taxonomy-line';
-        const heading = document.createElement('span'); heading.className = 'facet-label'; heading.textContent = label; line.appendChild(heading);
-        for (const value of values) {
-          const count = tabVocab(currentTab).filter(w => getter(w) === value).length;
-          if (!count) continue;
-          const item = document.createElement('span'); item.className = 'taxonomy-item';
-          item.textContent = value + ' ' + count; line.appendChild(item);
-        }
-        cf.appendChild(line);
+    const scope = scopeWords();
+    const addLine = (label, values, key, countOf) => {
+      const line = document.createElement('div'); line.className = 'facet-line';
+      const heading = document.createElement('span'); heading.className = 'facet-label'; heading.textContent = label;
+      line.appendChild(heading);
+      const mk = (value, text) => {
+        const b = document.createElement('button'); b.type = 'button';
+        b.className = 'chip' + (filters[key] === value ? ' active' : '');
+        b.dataset.facet = key; b.dataset.value = value;
+        b.textContent = text;
+        b.addEventListener('click', () => { filters[key] = (filters[key] === value && value !== 'all') ? 'all' : value; render(); });
+        line.appendChild(b);
       };
-      if (currentTab === 'vocab') {
-        const addCategoryLine = (label, values, key, getter) => {
-          const line = document.createElement('div'); line.className = 'facet-line';
-          const heading = document.createElement('span'); heading.className = 'facet-label'; heading.textContent = label; line.appendChild(heading);
-          const addButton = (value, count) => {
-            const button = document.createElement('button'); button.className = 'chip' + (filters[key] === value ? ' active' : '');
-            button.textContent = value === 'all' ? '\u5168\u90e8' : value + ' ' + count;
-            button.addEventListener('click', () => { filters[key] = value; render(); }); line.appendChild(button);
-          };
-          addButton('all', 0);
-          for (const value of values) {
-            const count = tabVocab('vocab').filter(w => getter(w) === value).length;
-            if (count) addButton(value, count);
-          }
-          cf.appendChild(line);
-        };
-        addCategoryLine('\u8bcd\u6027', WORD_CLASSES, 'pos', wordClassOf);
+      mk('all', '全部');
+      for (const v of values) {
+        const n = countOf(v);
+        if (n) mk(v, v + ' ' + n);
       }
-      const sceneLine = document.createElement('div'); sceneLine.className = 'facet-line';
-      cf.appendChild(sceneLine);
-      const heading = document.createElement('span'); heading.className = 'facet-label';
-      heading.textContent = ['vocab', 'humor'].includes(currentTab) ? '\u573a\u666f' : '\u4e8c\u7ea7\u5206\u7c7b';
-      sceneLine.appendChild(heading);
-      const addScene = (value, count) => {
-        const b = document.createElement('button'); b.className = 'chip' + (filters.scene === value ? ' active' : '');
-        b.dataset.scene = value; b.textContent = value + (value === 'all' ? '' : ' ' + count);
-        b.addEventListener('click', () => { filters.scene = value; if (value !== 'all') collapsedGroups.delete(currentTab + '|' + value); render(); });
-        sceneLine.appendChild(b);
-      };
-      addScene('all', 0);
-      for (const value of subcategoriesForTab(currentTab)) addScene(value, tabVocab(currentTab).filter(w => subcategoryOf(w) === value).length);
-      if (currentTab === 'vocab') {
-        const functionKey = 'role';
-        const addFunctionLine = () => {
-          const line = document.createElement('div'); line.className = 'facet-line';
-          const label = document.createElement('span'); label.className = 'facet-label'; label.textContent = '\u8868\u8fbe\u529f\u80fd'; line.appendChild(label);
-          const add = (value, count) => {
-            const button = document.createElement('button'); button.className = 'chip' + (filters[functionKey] === value ? ' active' : '');
-            button.dataset.role = value; button.textContent = value === 'all' ? '\u5168\u90e8' : value + ' ' + count;
-            button.addEventListener('click', () => { filters[functionKey] = value; render(); }); line.appendChild(button);
-          };
-          add('all', 0);
-          for (const value of EXPRESSION_FUNCTIONS) {
-            const count = tabVocab('vocab').filter(w => expressionFunctionOf(w) === value).length;
-            if (count) add(value, count);
-          }
-          cf.appendChild(line);
-          const selected = filters[functionKey];
-          const children = EXPRESSION_SUBCATEGORIES[selected];
-          if (selected !== 'all' && children && children.length) {
-            const subline = document.createElement('div'); subline.className = 'facet-line facet-subcategory-line';
-            const sublabel = document.createElement('span'); sublabel.className = 'facet-label'; sublabel.textContent = '\u4e8c\u7ea7\u5206\u7c7b'; subline.appendChild(sublabel);
-            for (const child of children) { const chip = document.createElement('span'); chip.className = 'subcategory-chip'; chip.textContent = child; subline.appendChild(chip); }
-            const note = document.createElement('small'); note.className = 'facet-subcategory-note'; note.textContent = '\u76ee\u5f55\u7ed3\u6784\uff0c\u8bcd\u6761\u5f52\u5c5e\u5f85\u6574\u7406'; subline.appendChild(note);
-            cf.appendChild(subline);
-          }
-        };
-        addFunctionLine();
-      }
-      return;
-    }
-    const all = document.createElement('button');
-    all.className = 'chip' + (filters.use === 'all' ? ' active' : ''); all.dataset.use = 'all'; all.textContent = '\u5168\u90e8\u7528\u9014';
-    cf.appendChild(all);
-    for (const u of tabUses(currentTab)) {
-      const b = document.createElement('button'); b.className = 'chip' + (filters.use === u ? ' active' : ''); b.dataset.use = u;
-      b.textContent = u + ' ' + tabVocab(currentTab).filter(w => useOf(w) === u).length; cf.appendChild(b);
-    }
-    cf.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
-      filters.use = b.dataset.use;
-      if (filters.use !== 'all') collapsedGroups.delete(filters.use);
-      render();
-    }));
+      cf.appendChild(line);
+    };
+    addLine('表达功能', EXPRESSION_FUNCTIONS, 'role', v => scope.filter(w => functionsOf(w).indexOf(v) >= 0).length);
+    addLine('使用场景', SCENE_VALUES, 'scene', v => scope.filter(w => scenesOf(w).indexOf(v) >= 0).length);
+    addLine('词性', WORD_CLASSES, 'pos', v => scope.filter(w => posOf(w) === v).length);
+    if (customTags.length) addLine('自定义标签', customTags, 'customTag', v => scope.filter(w => tagsForWord(w).indexOf(v) >= 0).length);
+    addLine('用途', USES, 'use', v => scope.filter(w => (w.use || []).indexOf(v) >= 0).length);
   }
 
   /* ---------- 筛选 UI ---------- */
@@ -1518,7 +1818,9 @@
       c.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x.dataset[attr] === filters[key]));
     }
     const cf = document.getElementById('catFilter');
-    if (cf) cf.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x.dataset.use === filters.use || x.dataset.pos === filters.pos || x.dataset.role === filters.role || x.dataset.scene === filters.scene || x.dataset.customTag === filters.customTag));
+    if (cf) cf.querySelectorAll('.chip').forEach(x => {
+      if (x.dataset.facet) x.classList.toggle('active', x.dataset.value === filters[x.dataset.facet]);
+    });
   }
   wireChips(document.getElementById('statusFilter'), 'f', 'status');
   wireChips(document.getElementById('masteryFilter'), 'm', 'mastery');
@@ -1648,8 +1950,11 @@
   }
 
   /* ---------- 启动 ---------- */
-  const APP_PAGES = ['home', 'desk', 'today', 'categories', 'review', 'stats'];
-  if (APP_PAGES.indexOf(currentTab) < 0 && !TABS.some(t => t.id === currentTab)) currentTab = 'home';
+  const APP_PAGES = ['home', 'library', 'desk', 'today', 'categories', 'review', 'stats'];
+  // 旧版本把内容类型当页面（vocab/phr/…），统一迁移到「我的词库」+ 内容类型筛选
+  if (TABS.some(t => t.id === currentTab)) { filters.type = currentTab; currentTab = 'library'; }
+  if (APP_PAGES.indexOf(currentTab) < 0) currentTab = 'home';
+  try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
   document.querySelectorAll('.btab').forEach(b => b.addEventListener('click', () => switchModule(b.dataset.mod)));
   switchModule('writing');
   render();

@@ -885,3 +885,59 @@ body{background:var(--bg);color:var(--ink)}
 .subcategory-chip{flex:0 0 auto;padding:4px 10px;border-radius:999px;background:#edf3fc;color:#566b88;font-size:11px}
 @media(max-width:650px){.function-tree{grid-template-columns:1fr}}
 .facet-subcategory-note{flex:0 0 auto;color:var(--sub);font-size:10px}
+
+/* ===== 我的词库：内容类型切换 + 批量操作 ===== */
+.library-type-row{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 12px}
+.type-chip{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;
+  background:var(--card);border:1px solid var(--line);color:var(--ink-2);
+  font:inherit;font-size:12px;cursor:pointer;transition:.15s
+}
+.type-chip b{font-size:11px;color:var(--sub);font-weight:700}
+.type-chip:hover{border-color:var(--brand);color:var(--ink)}
+.type-chip.active{background:var(--brand-soft);border-color:var(--brand);color:var(--ink);font-weight:700}
+.type-chip.active b{color:var(--brand)}
+.library-ops{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0 16px 10px}
+.library-ops-hint{flex:1 1 100%;font-size:10px;line-height:1.5}
+.library-active-filters{color:var(--brand);font-size:10px;text-align:right}
+
+/* ===== 词条上的分类小标签 ===== */
+.w-tax{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.tax-mini{font-size:9.5px;line-height:1.5;padding:1px 6px;border-radius:4px;letter-spacing:.2px}
+.tax-mini.tf{background:#fdf0dd;color:#9a6b12;border:1px solid #f0dcb4}
+.tax-mini.ts{background:#eaf3f6;color:#2f6f7d;border:1px solid #cfe4ea}
+.tax-mini.tp{background:#f1eef8;color:#5b4b8a;border:1px solid #ddd5ef}
+.tax-mini.tt{background:#f2f0ea;color:var(--ink-2);border:1px solid var(--line)}
+.word.locally-edited .w-text::after{content:"已改";font-size:9px;color:var(--brand);border:1px solid var(--brand);border-radius:3px;padding:0 3px;margin-left:6px;vertical-align:2px}
+
+/* ===== 分类标签编辑器 ===== */
+.taxonomy-editor,.entry-editor{margin-top:14px;padding:14px;background:#fcfaf4;border:1px solid var(--line);border-radius:12px}
+.tax-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+.tax-head h3{margin:0;font-size:13px;color:var(--ink)}
+.tax-row{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-top:1px dashed var(--line)}
+.tax-row:first-of-type{border-top:none}
+.tax-label{flex:0 0 62px;font-size:11px;color:var(--sub);padding-top:4px}
+.tax-chips{display:flex;flex-wrap:wrap;gap:5px;flex:1}
+.tax-chip{padding:3px 9px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--ink-2);font:inherit;font-size:11px;cursor:pointer;transition:.12s}
+.tax-chip:hover{border-color:var(--brand)}
+.tax-chip.on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+
+/* ===== 词条字段编辑 ===== */
+.edit-field{display:block;margin-bottom:9px}
+.edit-field>span{display:block;font-size:11px;color:var(--sub);margin-bottom:3px}
+.edit-field input,.edit-field textarea,.edit-field select{
+  width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;font:inherit;font-size:12.5px;color:var(--ink);resize:vertical
+}
+.edit-field input:focus,.edit-field textarea:focus,.edit-field select:focus{outline:none;border-color:var(--brand)}
+.entry-editor .btn-primary{margin-top:4px}
+.edited-flag{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:11px;color:#9a6b12}
+
+/* ===== 分类管理：模块编号与二级标签 ===== */
+.cat-module .module-index{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:19px;height:19px;margin-right:7px;border-radius:50%;
+  background:var(--brand);color:#fff;font-size:11px;font-weight:700;vertical-align:1px
+}
+.value-subs{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;padding-top:5px;border-top:1px dashed var(--line)}
+.sub-tag{font-size:9.5px;color:var(--sub);background:#f4f1e8;border-radius:3px;padding:1px 5px}
