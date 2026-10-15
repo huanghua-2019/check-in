@@ -971,3 +971,7 @@ body{background:var(--bg);color:var(--ink)}
 .tree-word{padding:4px 11px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--ink);font:inherit;font-size:12.5px;cursor:pointer;transition:.12s}
 .tree-word:hover{border-color:var(--brand);color:var(--brand)}
 .tree-word.missing{background:#f4f1e9;color:var(--sub);border-style:dashed;cursor:not-allowed}
+.tree-examples{margin:2px 6px 12px 20px;padding:10px 12px;background:#fdfaf2;border-left:3px solid var(--brand-soft);border-radius:0 8px 8px 0}
+.tree-examples .ex-title{display:block;font-size:10.5px;color:var(--brand);letter-spacing:.5px;margin-bottom:5px}
+.tree-examples .ex-line{margin:0 0 4px;font-size:12.5px;line-height:1.7;color:var(--ink2)}
+.tree-examples .ex-line:last-child{margin-bottom:0}

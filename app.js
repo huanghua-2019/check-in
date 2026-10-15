@@ -1135,8 +1135,8 @@
 
     const q = treeQuery;
     const matchGrp = grp => !q || (grp.name + ' ' + (grp.subtitle || '') + ' ' + (grp.credo || '')).indexOf(q) >= 0
-      || (grp.children || []).some(ch => (ch.name + ' ' + (ch.words || []).join(' ')).indexOf(q) >= 0);
-    const matchCh = ch => !q || (ch.name + ' ' + (ch.words || []).join(' ')).indexOf(q) >= 0;
+      || (grp.children || []).some(ch => (ch.name + ' ' + (ch.words || []).join(' ') + ' ' + (ch.examples || []).join(' ')).indexOf(q) >= 0);
+    const matchCh = ch => !q || (ch.name + ' ' + (ch.words || []).join(' ') + ' ' + (ch.examples || []).join(' ')).indexOf(q) >= 0;
 
     const list = document.createElement('div'); list.className = 'tree-list';
     const groups = (TREE.groups || []).filter(matchGrp);
@@ -1189,6 +1189,16 @@
               wlist.appendChild(b);
             }
             node.appendChild(wlist);
+            if ((ch.examples || []).length) {
+              const ex = document.createElement('div'); ex.className = 'tree-examples';
+              const ext = document.createElement('span'); ext.className = 'ex-title'; ext.textContent = '场景例句';
+              ex.appendChild(ext);
+              for (const line of ch.examples) {
+                const li = document.createElement('p'); li.className = 'ex-line'; li.textContent = line;
+                ex.appendChild(li);
+              }
+              node.appendChild(ex);
+            }
           }
           kids.appendChild(node);
         }
