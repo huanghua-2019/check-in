@@ -19,6 +19,31 @@
   // 新分类视图以原条目的人工维护分类为输入，不改动数据本身或打卡 ID。
   const SCENE_CATEGORIES = ['日常生活', '工作与沟通', '人际关系', '人物与心理描写', '环境与细节描写', '思考与分析', '阅读与写作', '❓ 待整理'];
   const HUMOR_SCENE_CATEGORIES = ['职场与协作', '社交与人际', '投资与消费', '学习与成长', '公共议题与围观', '竞争与冲突', '❓ 待整理'];
+  // 归并后：使用场景只保留 7 个通用场景（判据＝这个词在什么场合用）；题材单列，表达功能容纳句式体裁
+  const TOPIC_VALUES = ['🧠 认知与思维', '⚠️ 风险与警示', '📈 投资理念', '⚔️ 竞争与生存', '🌿 人生感悟',
+    '👥 人性与关系', '🔮 规律与真相', '🧠 人性与认知', '💼 商业判断', '🏢 管理与领导力', '🔄 变化与趋势', '🏗️ 组织与管理'];
+  // 句式体裁 → 表达功能（句式的 cat 是修辞功能，不是场景也不是题材）
+  const PHR_FUNCTION = {
+    '⚖️ 判断断言类': '观点与判断', '🔄 对比揭示类': '对比与转折', '📊 因果分析类': '推理与解释',
+    '🎯 设问与反问类': '推理与解释', '📋 列举论证类': '举例与证据', '📈 数据论证类': '举例与证据',
+    '🚀 文章开篇类': '衔接与组织', '✍️ 表达句式与模板': '衔接与组织',
+    '💼 商务写作句式模板': '衔接与组织', '✨ 排比与金句类': '描写与刻画'
+  };
+  // 旧场景值（幽默专用场景 / 比喻金句题材）→ 7 个通用场景；空串＝该维度不适用
+  const SCENE_MERGE = {
+    '日常生活': '日常生活', '工作与沟通': '工作与沟通', '人际关系': '人际关系',
+    '人物与心理描写': '人物与心理描写', '环境与细节描写': '环境与细节描写',
+    '思考与分析': '思考与分析', '阅读与写作': '阅读与写作', '❓ 待整理': '❓ 待整理',
+    '职场与协作': '工作与沟通', '社交与人际': '人际关系', '投资与消费': '日常生活',
+    '学习与成长': '阅读与写作', '公共议题与围观': '日常生活', '竞争与冲突': '工作与沟通',
+    '👥 人性与关系': '人际关系',
+    '🧠 认知与思维': '', '⚠️ 风险与警示': '', '📈 投资理念': '', '⚔️ 竞争与生存': '',
+    '🌿 人生感悟': '', '🔮 规律与真相': '', '🧠 人性与认知': '', '💼 商业判断': '',
+    '🏢 管理与领导力': '', '🔄 变化与趋势': '', '🏗️ 组织与管理': '',
+    '✍️ 表达句式与模板': '', '💼 商务写作句式模板': '', '⚖️ 判断断言类': '', '🔄 对比揭示类': '',
+    '🚀 文章开篇类': '', '📋 列举论证类': '', '📊 因果分析类': '', '🎯 设问与反问类': '',
+    '📈 数据论证类': '', '✨ 排比与金句类': ''
+  };
   const HUMOR_SCENE_BY_ID = {
     1642:'职场与协作',1643:'学习与成长',1644:'投资与消费',1645:'公共议题与围观',1646:'社交与人际',
     1647:'竞争与冲突',1648:'职场与协作',1649:'职场与协作',1650:'公共议题与围观',1651:'竞争与冲突',
@@ -66,11 +91,10 @@
     '🔄 对比揭示类':'思考与分析','🚀 文章开篇类':'阅读与写作','📋 列举论证类':'阅读与写作',
     '📊 因果分析类':'思考与分析','🎯 设问与反问类':'工作与沟通','📈 数据论证类':'思考与分析','✨ 排比与金句类':'阅读与写作'
   };
-  function sceneOf(entry) { return SCENE_BY_OLD_CAT[entry && entry.cat] || '❓ 待整理'; }
   let state = {};
   let mine = {};
   let sbUrl = 'https://buzfmugezbemyfdmbgyt.supabase.co', sbKey = 'sb_publishable_HvD6YPPY-RpHLRicuoobSw_aSw1B_Ow', sbOn = true;
-  const filters = { type: 'all', status: 'all', mastery: 'all', tier: 'all', use: 'all', scene: 'all', pos: 'all', role: 'all', function: 'all', customTag: 'all', q: '' };
+  const filters = { type: 'all', status: 'all', mastery: 'all', tier: 'all', use: 'all', scene: 'all', pos: 'all', role: 'all', function: 'all', customTag: 'all', topicTag: 'all', q: '' };
   const desk = { q: '', use: 'all', topic: 'all', domain: 'all' };
   const deskOpen = new Set();   // 取用台内已展开详情的条目 id
   const openIds = new Set();
@@ -95,7 +119,29 @@
   function tabVocab(tabId) { return VOCAB.filter(w => tabOf(w) === tabId); }
   function useOf(entry) { return (entry && entry.use && entry.use[0]) || '（未分）'; }
   function wordClassOf(entry) { return WORD_CLASS_BY_USE[useOf(entry)] || '❓ 待标词性'; }
-  function expressionFunctionOf(entry) { return FUNCTION_BY_USE[useOf(entry)] || '❓ 待整理'; }
+  function expressionFunctionOf(entry) {
+    // 句式的 cat 是修辞体裁，归入表达功能；其余仍按用途派生
+    if (tabOf(entry) === 'phr') return PHR_FUNCTION[entry && entry.cat] || '❓ 待整理';
+    return FUNCTION_BY_USE[useOf(entry)] || '❓ 待整理';
+  }
+  // 使用场景：收敛到 7 个通用场景；不适用的内容类型返回空串
+  function sceneOf(entry) {
+    const tab = tabOf(entry);
+    let raw = null;   // 先还原成「旧场景/题材名」，再过归并表
+    if (tab === 'vocab') raw = SCENE_BY_OLD_CAT[entry && entry.cat] || '';
+    else if (tab === 'humor') raw = HUMOR_SCENE_BY_ID[entry && entry.id] || '';
+    else if (tab === 'met' || tab === 'quote') raw = (entry && entry.cat) || '';
+    if (!raw) return '';
+    const merged = SCENE_MERGE[raw];
+    return merged === undefined ? '❓ 待整理' : merged;
+  }
+  // 题材：比喻与金句天然携带，其他内容可另行打标
+  function topicOf(entry) {
+    const tab = tabOf(entry);
+    if (tab !== 'met' && tab !== 'quote') return '';
+    const c = entry && entry.cat;
+    return (c && TOPIC_VALUES.indexOf(c) >= 0) ? c : '';
+  }
   function subUses(entry) { return (entry && entry.use && entry.use.slice(1)) || []; }
   function tabUses(tabId) {
     const s = new Set();
@@ -166,8 +212,14 @@
   function scenesOf(w) {
     const o = overrideOf(w); if (o && o.scene) return o.scene;
     if (!isTaxonomized(w)) return [];
-    const s = subcategoryOf(w);
+    const s = sceneOf(w);
     return (!s || s === '❓ 待整理') ? [] : [s];
+  }
+  function topicsOf(w) {
+    const o = overrideOf(w); if (o && o.topic) return o.topic;
+    if (!isTaxonomized(w)) return [];
+    const t = topicOf(w);
+    return t ? [t] : [];
   }
   function setOverride(id, patch) {
     const k = String(id); const cur = taxOverrides[k] || {};
@@ -182,7 +234,7 @@
   // 基于「当前生效值」做增删，保证勾选新值时原有派生值不丢
   function toggleTaxonomyValue(id, field, value) {
     const w = VOCAB.find(x => x.id === id); if (!w) return [];
-    const cur = field === 'func' ? functionsOf(w) : scenesOf(w);
+    const cur = field === 'func' ? functionsOf(w) : field === 'topic' ? topicsOf(w) : scenesOf(w);
     const list = cur.slice();
     const i = list.indexOf(value);
     if (i >= 0) list.splice(i, 1); else list.push(value);
@@ -529,6 +581,7 @@
       if (filters.use !== 'all' && (w.use || []).indexOf(filters.use) < 0) return false;
       if (filters.scene !== 'all' && scenesOf(w).indexOf(filters.scene) < 0) return false;
       if (filters.customTag !== 'all' && !tagsForWord(w).includes(filters.customTag)) return false;
+      if (filters.topicTag !== 'all' && topicsOf(w).indexOf(filters.topicTag) < 0) return false;
       if (q && matchScore(w, q) < 0) return false;
       return true;
     });
@@ -649,6 +702,7 @@
       taxBits.push('<span class="tax-mini tt">' + esc(tabName(tabOf(w))) + '</span>');
     }
     if (posOf(w)) taxBits.push('<span class="tax-mini tp">' + esc(posOf(w)) + '</span>');
+    for (const t of topicsOf(w)) taxBits.push('<span class="tax-mini tt2">' + esc(t) + '</span>');
     tap.innerHTML = `<div class="w-text">${w.tab === "phr" ? phrBold(esc(w.word)) : highlight(w.word, q)}${myDot}</div>` +
       (w.syn ? `<div class="w-sub">${highlight(w.syn, q)}</div>` : '') +
       (extra || lastStr ? `<div class="w-foot">${extra}${lastStr ? `<span class="w-last">${esc(lastStr)}</span>` : ''}</div>` : '') +
@@ -713,7 +767,7 @@
   function currentVocab() { return currentTab === 'library' ? VOCAB : (TABS.some(t => t.id === currentTab) ? tabVocab(currentTab) : VOCAB); }
   function resetLibraryFilters() {
     filters.status = 'all'; filters.mastery = 'all'; filters.tier = 'all'; filters.use = 'all';
-    filters.scene = 'all'; filters.pos = 'all'; filters.role = 'all'; filters.customTag = 'all'; filters.q = '';
+    filters.scene = 'all'; filters.pos = 'all'; filters.role = 'all'; filters.customTag = 'all'; filters.topicTag = 'all'; filters.q = '';
     const search = document.getElementById('search'); if (search) search.value = '';
   }
   // 内容类型（vocab/phr/…）不再是独立页面，统一进「我的词库」并转成类型筛选
@@ -799,6 +853,7 @@
     if (filters.scene !== 'all') activeBits.push('场景：' + filters.scene);
     if (filters.pos !== 'all') activeBits.push('词性：' + filters.pos);
     if (filters.customTag !== 'all') activeBits.push('自定义：' + filters.customTag);
+    if (filters.topicTag !== 'all') activeBits.push('题材：' + filters.topicTag);
     result.innerHTML = '<span>当前显示 ' + words.length + ' 条</span>' +
       (activeBits.length ? '<span class="library-active-filters">' + esc(activeBits.join('　·　')) + '</span>' : '');
     page.appendChild(result);
@@ -842,13 +897,8 @@
   }
 
   /* ---------- 分类标签编辑器：表达功能 / 使用场景可多选，词性单选 ---------- */
-  const EXTRA_SCENE_VALUES = (function () {
-    const set = {};
-    for (const w of VOCAB) if (['phr', 'met', 'quote'].indexOf(tabOf(w)) >= 0 && w.cat) set[w.cat] = 1;
-    return Object.keys(set);
-  })();
-  const SCENE_VALUES = SCENE_CATEGORIES.concat(HUMOR_SCENE_CATEGORIES, EXTRA_SCENE_VALUES)
-    .filter((v, i, a) => a.indexOf(v) === i);
+  // 归并后场景只有这 8 个（含待整理）；题材值见 TOPIC_VALUES
+  const SCENE_VALUES = SCENE_CATEGORIES.slice();
   function taxChip(label, active, onClick) {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'tax-chip' + (active ? ' on' : '');
@@ -879,6 +929,8 @@
       v => { toggleTaxonomyValue(entry.id, 'scene', v); render(); });
     mkRow('词性', WORD_CLASSES, v => posOf(entry) === v,
       v => { setTaxonomyPos(entry.id, v); render(); });
+    mkRow('题材', TOPIC_VALUES, v => topicsOf(entry).indexOf(v) >= 0,
+      v => { toggleTaxonomyValue(entry.id, 'topic', v); render(); });
     return box;
   }
 
@@ -947,7 +999,7 @@
       items: words.map(w => ({
         id: w.id, 内容类型: tabOf(w), 词条: w.word, 同义词: w.syn || '', 释义: w.mean || '',
         例句: w.example || '', 使用场景: w.scene || '', 分级: w.tier || '备用', 用途: w.use || [],
-        词性: posOf(w), 表达功能: functionsOf(w), 场景分类: scenesOf(w), 自定义标签: tagsForWord(w)
+        词性: posOf(w), 表达功能: functionsOf(w), 场景分类: scenesOf(w), 题材: topicsOf(w), 自定义标签: tagsForWord(w)
       }))
     };
     const stamp = new Date().toISOString().slice(0, 10);
@@ -985,6 +1037,7 @@
           if (it.词性) tax.pos = it.词性;
           if (Array.isArray(it.表达功能)) tax.func = it.表达功能;
           if (Array.isArray(it.场景分类)) tax.scene = it.场景分类;
+          if (Array.isArray(it.题材)) tax.topic = it.题材;
           if (Object.keys(tax).length) setOverride(exist.id, tax);
           if (Array.isArray(it.自定义标签)) {
             const values = new Set(tagsForWord(exist));
@@ -1008,6 +1061,7 @@
           if (it.词性) tax.pos = it.词性;
           if (Array.isArray(it.表达功能)) tax.func = it.表达功能;
           if (Array.isArray(it.场景分类)) tax.scene = it.场景分类;
+          if (Array.isArray(it.题材)) tax.topic = it.题材;
           if (Object.keys(tax).length) setOverride(item.id, tax);
           if (Array.isArray(it.自定义标签)) {
             entryTags[String(item.id)] = it.自定义标签.slice();
@@ -1048,7 +1102,7 @@
   }
   function renderCategoryManager() {
     const wrap = document.createElement('div'); wrap.className = 'new-page';
-    wrap.appendChild(pageHeading('分类管理', '分类即标签：一条内容可同时归属多个表达功能与使用场景。改动只存本机，随时可撤销，原始词库不动。'));
+    wrap.appendChild(pageHeading('分类管理', '六大模块：内容类型 / 表达功能 / 使用场景 / 题材 / 词性 / 自定义标签。一条内容可同时归属多个标签；改动只存本机，随时可撤销。'));
     // 参与功能/场景/词性分类的只有前五类；辨析、案例、规则仅出现在「内容类型」
     const taxScope = VOCAB.filter(isTaxonomized);
     const moduleCard = (index, title, subtitle) => {
@@ -1111,14 +1165,20 @@
       v => taxScope.filter(w => scenesOf(w).indexOf(v) >= 0).length,
       v => goLibrary({ scene: v, type: 'all' })));
 
-    /* 4. 词性 */
-    const posCard = moduleCard(4, '词性', '单选；点一下设为该词性，再点取消');
+    /* 4. 题材：比喻与金句天然携带，其他内容可打标 */
+    const topicCard = moduleCard(4, '题材', '比喻与金句在讲什么；与「使用场景」互不重叠');
+    topicCard.appendChild(valueGrid(TOPIC_VALUES,
+      v => taxScope.filter(w => topicsOf(w).indexOf(v) >= 0).length,
+      v => goLibrary({ topicTag: v, type: 'all' })));
+
+    /* 5. 词性 */
+    const posCard = moduleCard(5, '词性', '单选；点一下设为该词性，再点取消');
     posCard.appendChild(valueGrid(WORD_CLASSES,
       v => taxScope.filter(w => posOf(w) === v).length,
       v => goLibrary({ pos: v, type: 'all' })));
 
-    /* 5. 自定义标签 */
-    const tagCard = moduleCard(5, '自定义标签', '自己定义的标签，随词条保存');
+    /* 6. 自定义标签 */
+    const tagCard = moduleCard(6, '自定义标签', '自己定义的标签，随词条保存');
     const createRow = document.createElement('div'); createRow.className = 'custom-tag-create';
     const tagInput = document.createElement('input'); tagInput.type = 'text'; tagInput.maxLength = 20;
     tagInput.placeholder = '例如：想练习、适合开头';
@@ -1146,7 +1206,7 @@
     tagCard.appendChild(customGrid);
 
     const note = document.createElement('p'); note.className = 'taxonomy-note';
-    note.textContent = '表达功能、使用场景、词性的默认值来自词库原始分类；在词条详情里改动会存为本地覆盖，原始词库保持不变。辨析、案例、规则按你的要求只放在内容类型里，不再参与这三个维度。词库原有的「领域与主题标签」与使用场景语义重叠，已从分类管理中移除，仅在表达取用台保留为题材检索。';
+    note.textContent = '表达功能、使用场景、题材、词性的默认值来自词库原始分类；使用场景已由原先 36 个值收敛为 7 个通用场景，句式体裁归入表达功能，比喻金句的题材单列；在词条详情里改动会存为本地覆盖，原始词库保持不变。在词条详情里改动会存为本地覆盖，原始词库保持不变。辨析、案例、规则按你的要求只放在内容类型里，不再参与这三个维度。词库原有的「领域与主题标签」与使用场景语义重叠，已从分类管理中移除，仅在表达取用台保留为题材检索。';
     wrap.appendChild(note);
     list.innerHTML = ''; list.appendChild(wrap);
   }
@@ -1730,6 +1790,7 @@
     addLine('表达功能', EXPRESSION_FUNCTIONS, 'role', v => scope.filter(w => functionsOf(w).indexOf(v) >= 0).length);
     addLine('使用场景', SCENE_VALUES, 'scene', v => scope.filter(w => scenesOf(w).indexOf(v) >= 0).length);
     addLine('词性', WORD_CLASSES, 'pos', v => scope.filter(w => posOf(w) === v).length);
+    addLine('题材', TOPIC_VALUES, 'topicTag', v => scope.filter(w => topicsOf(w).indexOf(v) >= 0).length);
     if (customTags.length) addLine('自定义标签', customTags, 'customTag', v => scope.filter(w => tagsForWord(w).indexOf(v) >= 0).length);
     addLine('用途', USES, 'use', v => scope.filter(w => (w.use || []).indexOf(v) >= 0).length);
   }

@@ -907,6 +907,7 @@ body{background:var(--bg);color:var(--ink)}
 .tax-mini.ts{background:#eaf3f6;color:#2f6f7d;border:1px solid #cfe4ea}
 .tax-mini.tp{background:#f1eef8;color:#5b4b8a;border:1px solid #ddd5ef}
 .tax-mini.tt{background:#f2f0ea;color:var(--ink-2);border:1px solid var(--line)}
+.tax-mini.tt2{background:#f6f1e3;color:#7a6320;border:1px solid #e8dcbe}
 .word.locally-edited .w-text::after{content:"已改";font-size:9px;color:var(--brand);border:1px solid var(--brand);border-radius:3px;padding:0 3px;margin-left:6px;vertical-align:2px}
 
 /* ===== 分类标签编辑器 ===== */
