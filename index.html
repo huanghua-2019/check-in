@@ -4,12 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>词汇工坊</title>
-<link rel="stylesheet" href="styles.css?v=39">
+<link rel="stylesheet" href="styles.css?v=40">
 </head>
 <body class="has-bt">
-<div id="bigTabs" class="big-tabs">
-  <button class="btab active" data-mod="writing">✍️ 写作</button>
-</div>
 <section id="mod-writing" class="module">
 <button id="menuBtn" class="menu-btn" aria-label="菜单">☰</button>
 <div id="backdrop" class="backdrop"></div>
@@ -84,7 +81,7 @@
     <nav class="sb-tabs" id="sleepTabs"></nav>
   </aside>
   <div class="main-wrap">
-    <div class="mod-head"><h1>🌙 早睡打卡</h1><span class="sub">记录入睡时间 · 00:40 前达标</span></div>
+    <div class="mod-head"><button type="button" class="back-writing" data-back-writing>← 词汇工坊</button><h1>🌙 早睡打卡</h1><span class="sub">记录入睡时间 · 00:40 前达标</span></div>
     <div id="sleep-list"></div>
   </div>
 </div>
@@ -100,7 +97,7 @@
     <nav class="sb-tabs" id="methodTabs"></nav>
   </aside>
   <div class="main-wrap">
-    <div class="mod-head"><h1>💡 我的底层框架</h1><span class="sub">可自定义添加 · 点击「＋ 新建框架」随时建一个</span></div>
+    <div class="mod-head"><button type="button" class="back-writing" data-back-writing>← 词汇工坊</button><h1>💡 我的底层框架</h1><span class="sub">可自定义添加 · 点击「＋ 新建框架」随时建一个</span></div>
     <div id="method-list"></div>
   </div>
 </div>
@@ -134,7 +131,7 @@
 </div>
 
 <script src="data.js?v=28"></script>
-<script src="app.js?v=51"></script>
+<script src="app.js?v=52"></script>
 <script src="habits.js?v=21"></script>
 </body>
 </html>

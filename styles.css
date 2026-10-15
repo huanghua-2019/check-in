@@ -452,20 +452,21 @@ main{padding:0 12px 24px;flex:1}
   body.sb-open .sidebar{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.3)}
 }
 
-/* ===== 三层大标签（写作 / 早睡 / 方法） ===== */
-.big-tabs{position:fixed;top:0;left:0;right:0;height:52px;z-index:80;display:flex;background:var(--sidebar-bg);border-bottom:1px solid var(--sidebar-line)}
-.btab{flex:1;border:none;background:transparent;color:var(--sidebar-ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;border-bottom:3px solid transparent;transition:color .12s,border-color .12s}
-.btab:hover{color:#fff}
-.btab.active{color:#fff;border-bottom-color:var(--brand)}
-body.has-bt #sidebar{top:52px}
-body.has-bt .sidebar{top:52px}
-body.has-bt .main-wrap{padding-top:52px}
-body.has-bt .topbar{top:52px}
-body.has-bt .menu-btn,body.has-bt #menuBtn{top:66px}
+/* ===== 模块切换（顶部大标签已移除，返回入口在各自模块标题栏） ===== */
+body.has-bt #sidebar{top:0}
+body.has-bt .sidebar{top:0}
+body.has-bt .main-wrap{padding-top:0}
+body.has-bt .topbar{top:0}
+body.has-bt .menu-btn,body.has-bt #menuBtn{top:14px}
 .module[hidden]{display:none}
-.mod-page{padding-top:52px}
-.mod-head{position:sticky;top:52px;z-index:30;background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:8px}
+.mod-page{padding-top:0}
+.mod-head{position:sticky;top:0;z-index:30;background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .mod-head h1{font-size:18px;margin:0;font-weight:800;color:var(--ink);flex:1}
+.back-writing{
+  padding:5px 11px;border:1px solid var(--line);border-radius:999px;background:var(--card);
+  color:var(--ink-2);font:inherit;font-size:12px;cursor:pointer;transition:.15s;white-space:nowrap
+}
+.back-writing:hover{border-color:var(--brand);color:var(--brand)}
 .mod-head .sub{font-size:12px;color:var(--sub)}
 
 /* ===== 新习惯卡片（早睡 / 方法） ===== */
@@ -726,8 +727,6 @@ body{background:var(--bg);color:var(--ink)}
 .sb-foot{border-top-color:var(--sidebar-line)}
 .sb-link{color:var(--ink-2);border-color:var(--line);border-radius:10px}
 .sb-link:hover{background:var(--bg-2);color:var(--ink)}
-.big-tabs{background:#fff;border-bottom-color:var(--line);box-shadow:0 2px 10px rgba(39,73,119,.04)}
-.btab{color:var(--ink-2)}.btab:hover{color:var(--ink)}.btab.active{color:#215db4;border-bottom-color:var(--brand-2)}
 .topbar{background:#fff;border-bottom-color:var(--line)}
 .topbar .title h1{font-size:19px;letter-spacing:.2px}
 .progress{background:#e7eef8}

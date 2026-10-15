@@ -1955,7 +1955,10 @@
   if (TABS.some(t => t.id === currentTab)) { filters.type = currentTab; currentTab = 'library'; }
   if (APP_PAGES.indexOf(currentTab) < 0) currentTab = 'home';
   try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
-  document.querySelectorAll('.btab').forEach(b => b.addEventListener('click', () => switchModule(b.dataset.mod)));
+  // 顶部模块条已移除；早睡 / 底层框架模块内提供返回词汇工坊的入口
+  document.querySelectorAll('[data-back-writing]').forEach(b => b.addEventListener('click', () => {
+    if (window.showMod) window.showMod('writing'); else switchModule('writing');
+  }));
   switchModule('writing');
   render();
   if (sbOn) {
