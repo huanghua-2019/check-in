@@ -193,6 +193,8 @@
     if (m === 'method') renderMethod();
   }
   document.querySelectorAll('.btab').forEach(b => b.addEventListener('click', () => showMod(b.dataset.mod)));
+  // 暴露给写作模块侧边栏的「其他工具」组调用（IIFE 内函数需挂全局才能被 app.js 调到）
+  window.showMod = showMod;
 
   // 早睡 / 框架 两个子模块各自的左侧抽屉（菜单/遮罩/关闭）
   function wireSidebars() {

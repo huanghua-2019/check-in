@@ -1393,6 +1393,15 @@
     addLabel('规则'); addVocabTab(TABS.find(t => t.id === 'rule'), false);
     addLabel('工具');
     addPage('categories', '🗂️', '分类管理'); addPage('desk', '🎯', '表达取用台');
+    addLabel('其他工具');
+    const addModTab = (id, icon, name) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tab';
+      b.innerHTML = '<span class="t-ico">' + icon + '</span><span class="t-name">' + name + '</span>';
+      b.title = name;
+      b.addEventListener('click', () => { if (window.showMod) window.showMod(id); });
+      el.appendChild(b);
+    };
+    addModTab('sleep', '🌙', '早睡'); addModTab('method', '💡', '底层框架');
   }
   function switchModule(id) {
     document.querySelectorAll('.module').forEach(m => { m.hidden = m.id !== 'mod-' + id; });
