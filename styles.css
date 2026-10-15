@@ -941,3 +941,33 @@ body{background:var(--bg);color:var(--ink)}
 }
 .value-subs{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;padding-top:5px;border-top:1px dashed var(--line)}
 .sub-tag{font-size:9.5px;color:var(--sub);background:#f4f1e8;border-radius:3px;padding:1px 5px}
+
+/* ===== 体系目录：树状纵深浏览 ===== */
+.tree-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.tree-search{flex:1 1 220px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font:inherit;font-size:13px;color:var(--ink)}
+.tree-search:focus{outline:none;border-color:var(--brand)}
+.tree-list{display:flex;flex-direction:column;gap:10px}
+.tree-node{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tree-head{display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;background:none;border:none;font:inherit;text-align:left;cursor:pointer}
+.tree-head:hover{background:#fdfaf2}
+.tree-head .tw{color:var(--brand);font-size:12px;width:12px;flex-shrink:0}
+.tree-head .tn{flex:1;min-width:0}
+.tree-head .tn b{display:block;font-size:15px;color:var(--ink)}
+.tree-head .tn small{display:block;font-size:11.5px;color:var(--sub);margin-top:2px}
+.tree-head .tc{flex-shrink:0;font-size:11px;color:var(--sub)}
+.tree-credo,.tree-practice{margin:0;padding:10px 16px;font-size:12px;color:var(--ink2);background:#fdfaf2;border-top:1px dashed var(--line)}
+.tree-practice{background:#fdf8ea}
+.tree-credo b,.tree-practice b{color:var(--brand);margin-right:8px;font-size:11px}
+.tree-children{padding:6px 12px 12px}
+.tree-child{border-top:1px solid #f0ead8}
+.tree-child:first-child{border-top:none}
+.tree-child-head{display:flex;align-items:center;gap:8px;width:100%;padding:10px 6px;background:none;border:none;font:inherit;text-align:left;cursor:pointer;border-radius:8px}
+.tree-child-head:hover{background:#faf6ea}
+.tree-child-head .tw{color:var(--brand2);font-size:11px;width:11px}
+.tree-child-head .tn{flex:1}
+.tree-child-head .tn b{font-size:13.5px;color:var(--ink2)}
+.tree-child-head .tc{font-size:11px;color:var(--sub)}
+.tree-words{display:flex;flex-wrap:wrap;gap:6px;padding:2px 6px 12px 20px}
+.tree-word{padding:4px 11px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--ink);font:inherit;font-size:12.5px;cursor:pointer;transition:.12s}
+.tree-word:hover{border-color:var(--brand);color:var(--brand)}
+.tree-word.missing{background:#f4f1e9;color:var(--sub);border-style:dashed;cursor:not-allowed}

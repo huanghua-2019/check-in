@@ -743,11 +743,11 @@
   }
   function render() {
     const pageTitle = document.getElementById('pageTitle');
-    const titles = { home: '首页', library: '我的词库', desk: '表达取用台', today: '今日打卡', categories: '分类管理', review: '复习训练', stats: '学习统计' };
+    const titles = { home: '首页', library: '我的词库', tree: '体系目录', desk: '表达取用台', today: '今日打卡', categories: '分类管理', review: '复习训练', stats: '学习统计' };
     if (pageTitle) pageTitle.textContent = titles[currentTab] || tabName(currentTab);
     document.body.classList.toggle('on-home', ['home', 'desk'].includes(currentTab));
     document.body.classList.toggle('on-library', currentTab === 'library' || TABS.some(t => t.id === currentTab));
-    document.body.classList.toggle('on-new-page', ['today', 'categories', 'review', 'stats'].includes(currentTab));
+    document.body.classList.toggle('on-new-page', ['today', 'categories', 'review', 'stats', 'tree'].includes(currentTab));
     if (currentTab === 'home') {
       document.body.classList.add('on-home');
       renderDashboard(); updateStats(); renderTabs(); return;
@@ -757,6 +757,7 @@
       renderDesk(); updateStats(); renderTabs(); return;
     }
     if (currentTab === 'today') { renderTodayPage(); updateStats(); renderTabs(); return; }
+    if (currentTab === 'tree') { renderTreePage(); updateStats(); renderTabs(); return; }
     if (currentTab === 'categories') { renderCategoryManager(); updateStats(); renderTabs(); return; }
     if (currentTab === 'review') { renderReviewPage(); updateStats(); renderTabs(); return; }
     if (currentTab === 'stats') { renderStatsPage(); updateStats(); renderTabs(); return; }
@@ -1099,6 +1100,109 @@
       actions.append(open, check); row.appendChild(actions); section.appendChild(row);
     }
     wrap.appendChild(section); list.innerHTML = ''; list.appendChild(wrap);
+  }
+  /* ---------- 体系目录：独立的纵深组织，只与词条关联 ---------- */
+  const TREE = window.VOCAB_TREE || { groups: [] };
+  const treeOpen = new Set();          // 已展开的一级类/二级组 key
+  let treeQuery = '';
+  function treeFindWord(name) { return VOCAB.find(w => String(w.word).trim() === String(name).trim()); }
+  function treeStats() {
+    let g = 0, c = 0, w = 0, miss = 0;
+    for (const grp of TREE.groups || []) {
+      g++; for (const ch of grp.children || []) {
+        c++; for (const nm of ch.words || []) (treeFindWord(nm) ? w++ : miss++);
+      }
+    }
+    return { g: g, c: c, w: w, miss: miss };
+  }
+  function renderTreePage() {
+    const wrap = document.createElement('div'); wrap.className = 'new-page tree-page';
+    const st = treeStats();
+    wrap.appendChild(pageHeading('体系目录', '按你的体系纵深浏览：' + st.g + ' 个一级类 · ' + st.c + ' 个二级组 · ' + st.w + ' 条词汇；点词条直达词库详情'));
+
+    const bar = document.createElement('div'); bar.className = 'tree-toolbar';
+    const search = document.createElement('input');
+    search.type = 'search'; search.className = 'tree-search'; search.value = treeQuery;
+    search.placeholder = '搜一级类 / 二级组 / 词汇…';
+    search.addEventListener('input', () => { treeQuery = search.value.trim(); renderTreePage(); });
+    bar.appendChild(search);
+    if (st.miss) {
+      const warn = document.createElement('span'); warn.className = 'muted';
+      warn.textContent = '有 ' + st.miss + ' 个词尚未收录进词库（灰色显示）';
+      bar.appendChild(warn);
+    }
+    wrap.appendChild(bar);
+
+    const q = treeQuery;
+    const matchGrp = grp => !q || (grp.name + ' ' + (grp.subtitle || '') + ' ' + (grp.credo || '')).indexOf(q) >= 0
+      || (grp.children || []).some(ch => (ch.name + ' ' + (ch.words || []).join(' ')).indexOf(q) >= 0);
+    const matchCh = ch => !q || (ch.name + ' ' + (ch.words || []).join(' ')).indexOf(q) >= 0;
+
+    const list = document.createElement('div'); list.className = 'tree-list';
+    const groups = (TREE.groups || []).filter(matchGrp);
+    if (!groups.length) {
+      const empty = document.createElement('div'); empty.className = 'empty';
+      empty.textContent = q ? '没有匹配的分类或词汇。' : '还没有体系目录数据，请在 data-tree.js 里添加。';
+      list.appendChild(empty);
+    }
+    for (const grp of groups) {
+      const gk = 'g:' + grp.id;
+      const total = (grp.children || []).reduce((n, ch) => n + (ch.words || []).length, 0);
+      const openG = !!q || treeOpen.has(gk);
+      const sec = document.createElement('section'); sec.className = 'tree-node' + (openG ? ' open' : '');
+      const head = document.createElement('button'); head.type = 'button'; head.className = 'tree-head';
+      head.innerHTML = '<span class="tw">' + (openG ? '▾' : '▸') + '</span>' +
+        '<span class="tn"><b>' + esc(grp.name) + '</b>' +
+        (grp.subtitle ? '<small>' + esc(grp.subtitle) + '</small>' : '') + '</span>' +
+        '<span class="tc">' + (grp.children || []).length + ' 组 · ' + total + ' 词</span>';
+      head.addEventListener('click', () => { openG ? treeOpen.delete(gk) : treeOpen.add(gk); renderTreePage(); });
+      sec.appendChild(head);
+      if (grp.credo) {
+        const cr = document.createElement('p'); cr.className = 'tree-credo';
+        cr.innerHTML = '<b>核心心法</b>' + esc(grp.credo); sec.appendChild(cr);
+      }
+      if (openG) {
+        const kids = document.createElement('div'); kids.className = 'tree-children';
+        for (const ch of (grp.children || [])) {
+          if (!matchCh(ch)) continue;
+          const ck = gk + '|' + ch.id;
+          const openC = !!q || treeOpen.has(ck);
+          const node = document.createElement('div'); node.className = 'tree-child';
+          const chead = document.createElement('button'); chead.type = 'button'; chead.className = 'tree-child-head';
+          chead.innerHTML = '<span class="tw">' + (openC ? '▾' : '▸') + '</span>' +
+            '<span class="tn"><b>' + esc(ch.name) + '</b></span>' +
+            '<span class="tc">' + (ch.words || []).length + ' 词</span>';
+          chead.addEventListener('click', () => { openC ? treeOpen.delete(ck) : treeOpen.add(ck); renderTreePage(); });
+          node.appendChild(chead);
+          if (openC) {
+            const wlist = document.createElement('div'); wlist.className = 'tree-words';
+            for (const nm of (ch.words || [])) {
+              const hit = treeFindWord(nm);
+              const b = document.createElement('button'); b.type = 'button';
+              b.className = 'tree-word' + (hit ? '' : ' missing');
+              b.textContent = nm;
+              b.title = hit ? '在词库中查看「' + nm + '」' : '「' + nm + '」尚未收录进词库';
+              b.addEventListener('click', () => {
+                if (!hit) { toast('「' + nm + '」还没收录进词库'); return; }
+                openInLibrary(hit);
+              });
+              wlist.appendChild(b);
+            }
+            node.appendChild(wlist);
+          }
+          kids.appendChild(node);
+        }
+        sec.appendChild(kids);
+        if (grp.practice) {
+          const pr = document.createElement('p'); pr.className = 'tree-practice';
+          pr.innerHTML = '<b>实操练习</b>' + esc(grp.practice); sec.appendChild(pr);
+        }
+      }
+      list.appendChild(sec);
+    }
+    wrap.appendChild(list);
+    const holder = document.getElementById('list');
+    holder.innerHTML = ''; holder.appendChild(wrap);
   }
   function renderCategoryManager() {
     const wrap = document.createElement('div'); wrap.className = 'new-page';
@@ -1737,6 +1841,7 @@
     addPage('home', '\ud83c\udfe0', '首页');
     addPage('today', '\u2705', '今日打卡');
     addPage('library', '\ud83d\udcda', '我的词库', doneAll + '/' + VOCAB.length);
+    addPage('tree', '🗂', '体系目录');
     addPage('categories', '\ud83d\uddd2', '分类管理');
     addPage('desk', '\ud83c\udfaf', '表达取用台');
     addPage('review', '\ud83e\udde0', '复习训练');
@@ -1946,7 +2051,7 @@
   }
 
   /* ---------- 启动 ---------- */
-  const APP_PAGES = ['home', 'library', 'desk', 'today', 'categories', 'review', 'stats'];
+  const APP_PAGES = ['home', 'library', 'tree', 'desk', 'today', 'categories', 'review', 'stats'];
   // 旧版本把内容类型当页面（vocab/phr/…），统一迁移到「我的词库」+ 内容类型筛选
   if (TABS.some(t => t.id === currentTab)) { filters.type = currentTab; currentTab = 'library'; }
   if (APP_PAGES.indexOf(currentTab) < 0) currentTab = 'home';
