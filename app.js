@@ -26,6 +26,19 @@
   const SCENE_TABS = ['vocab', 'phr', 'met', 'quote', 'humor'];
   const WORD_CLASSES = ['名词 / 概念', '动词', '形容词', '副词 / 连词', '❓ 待标词性'];
   const EXPRESSION_FUNCTIONS = ['观点与判断', '推理与解释', '对比与转折', '举例与证据', '概括与命名', '动作与变化', '状态与程度', '描写与刻画', '类比与形象化', '衔接与组织', '风险与边界', '❓ 待整理'];
+  const EXPRESSION_SUBCATEGORIES = {
+    '\u89c2\u70b9\u4e0e\u5224\u65ad': ['\u8868\u6001', '\u8bc4\u4ef7', '\u4e0b\u7ed3\u8bba'],
+    '\u63a8\u7406\u4e0e\u89e3\u91ca': ['\u56e0\u679c', '\u6761\u4ef6', '\u903b\u8f91'],
+    '\u5bf9\u6bd4\u4e0e\u8f6c\u6298': ['\u6bd4\u8f83', '\u8ba9\u6b65', '\u8f6c\u6298'],
+    '\u4e3e\u4f8b\u4e0e\u8bc1\u636e': ['\u4e8b\u5b9e', '\u6570\u636e', '\u4f8b\u8bc1'],
+    '\u6982\u62ec\u4e0e\u547d\u540d': ['\u603b\u7ed3\u89c4\u5f8b', '\u73b0\u8c61\u547d\u540d', '\u6982\u5ff5\u547d\u540d'],
+    '\u52a8\u4f5c\u4e0e\u53d8\u5316': ['\u884c\u4e3a', '\u8fc7\u7a0b', '\u8d8b\u52bf'],
+    '\u72b6\u6001\u4e0e\u7a0b\u5ea6': ['\u6027\u8d28', '\u72b6\u6001', '\u5f3a\u5f31'],
+    '\u63cf\u5199\u4e0e\u523b\u753b': ['\u4eba\u7269', '\u5fc3\u7406', '\u73af\u5883', '\u7ec6\u8282'],
+    '\u7c7b\u6bd4\u4e0e\u5f62\u8c61\u5316': ['\u76f8\u4f3c\u4e8b\u7269', '\u62bd\u8c61\u89e3\u91ca'],
+    '\u8854\u63a5\u4e0e\u7ec4\u7ec7': ['\u627f\u63a5', '\u9012\u8fdb', '\u9650\u5b9a', '\u6536\u675f'],
+    '\u98ce\u9669\u4e0e\u8fb9\u754c': ['\u98ce\u9669', '\u540e\u679c', '\u9002\u7528\u8303\u56f4']
+  };
   const WORD_CLASS_BY_USE = {
     '📐 概念指代':'名词 / 概念','🗣️ 灵活动词':'动词','🔤 精准形容词':'形容词','↔️ 副词连词':'副词 / 连词'
   };
@@ -783,7 +796,24 @@
       group.appendChild(grid); uses.appendChild(group);
     };
     addDimensionCards('\u8bcd\u6027', WORD_CLASSES, wordClassOf, 'pos');
-    addDimensionCards('\u8868\u8fbe\u4f5c\u7528', EXPRESSION_FUNCTIONS, expressionFunctionOf, 'role');
+    const functionGroup = document.createElement('div'); functionGroup.className = 'form-family';
+    functionGroup.innerHTML = '<h4>\u8868\u8fbe\u529f\u80fd\uff08\u4e00\u7ea7 / \u4e8c\u7ea7\uff09</h4><p>\u5b50\u7c7b\u5148\u4f5c\u76ee\u5f55\u7ed3\u6784\uff0c\u8bcd\u6761\u5f52\u5c5e\u5f85\u9010\u6761\u6574\u7406</p>';
+    const functionTree = document.createElement('div'); functionTree.className = 'function-tree';
+    for (const value of EXPRESSION_FUNCTIONS) {
+      const n = VOCAB.filter(w => tabOf(w) === 'vocab' && expressionFunctionOf(w) === value).length;
+      const branch = document.createElement('div'); branch.className = 'function-branch';
+      const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'use-card function-parent';
+      btn.innerHTML = '<span>' + esc(value) + '</span><b>' + n + '</b>';
+      btn.addEventListener('click', () => { navigate('vocab'); filters.role = value; render(); });
+      branch.appendChild(btn);
+      const children = document.createElement('div'); children.className = 'function-children';
+      for (const child of (EXPRESSION_SUBCATEGORIES[value] || [])) {
+        const tag = document.createElement('span'); tag.className = 'function-child'; tag.textContent = child; children.appendChild(tag);
+      }
+      if (!children.childElementCount) { const pending = document.createElement('span'); pending.className = 'function-child pending'; pending.textContent = '\u6682\u65e0\u4e8c\u7ea7\u9879'; children.appendChild(pending); }
+      branch.appendChild(children); functionTree.appendChild(branch);
+    }
+    functionGroup.appendChild(functionTree); uses.appendChild(functionGroup);
     wrap.appendChild(uses);
     const tagValues = new Set(); for (const w of VOCAB) if (SCENE_TABS.includes(tabOf(w))) for (const tag of (w.topic || [])) tagValues.add(tag);
     const tagCard = document.createElement('section'); tagCard.className = 'new-card';
@@ -1402,7 +1432,6 @@
           cf.appendChild(line);
         };
         addCategoryLine('\u8bcd\u6027', WORD_CLASSES, 'pos', wordClassOf);
-        addCategoryLine('\u8868\u8fbe\u4f5c\u7528', EXPRESSION_FUNCTIONS, 'role', expressionFunctionOf);
       }
       const sceneLine = document.createElement('div'); sceneLine.className = 'facet-line';
       cf.appendChild(sceneLine);
@@ -1417,6 +1446,34 @@
       };
       addScene('all', 0);
       for (const value of subcategoriesForTab(currentTab)) addScene(value, tabVocab(currentTab).filter(w => subcategoryOf(w) === value).length);
+      if (currentTab === 'vocab') {
+        const functionKey = 'role';
+        const addFunctionLine = () => {
+          const line = document.createElement('div'); line.className = 'facet-line';
+          const label = document.createElement('span'); label.className = 'facet-label'; label.textContent = '\u8868\u8fbe\u529f\u80fd'; line.appendChild(label);
+          const add = (value, count) => {
+            const button = document.createElement('button'); button.className = 'chip' + (filters[functionKey] === value ? ' active' : '');
+            button.dataset.role = value; button.textContent = value === 'all' ? '\u5168\u90e8' : value + ' ' + count;
+            button.addEventListener('click', () => { filters[functionKey] = value; render(); }); line.appendChild(button);
+          };
+          add('all', 0);
+          for (const value of EXPRESSION_FUNCTIONS) {
+            const count = tabVocab('vocab').filter(w => expressionFunctionOf(w) === value).length;
+            if (count) add(value, count);
+          }
+          cf.appendChild(line);
+          const selected = filters[functionKey];
+          const children = EXPRESSION_SUBCATEGORIES[selected];
+          if (selected !== 'all' && children && children.length) {
+            const subline = document.createElement('div'); subline.className = 'facet-line facet-subcategory-line';
+            const sublabel = document.createElement('span'); sublabel.className = 'facet-label'; sublabel.textContent = '\u4e8c\u7ea7\u5206\u7c7b'; subline.appendChild(sublabel);
+            for (const child of children) { const chip = document.createElement('span'); chip.className = 'subcategory-chip'; chip.textContent = child; subline.appendChild(chip); }
+            const note = document.createElement('small'); note.className = 'facet-subcategory-note'; note.textContent = '\u76ee\u5f55\u7ed3\u6784\uff0c\u8bcd\u6761\u5f52\u5c5e\u5f85\u6574\u7406'; subline.appendChild(note);
+            cf.appendChild(subline);
+          }
+        };
+        addFunctionLine();
+      }
       return;
     }
     const all = document.createElement('button');
