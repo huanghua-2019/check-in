@@ -455,46 +455,52 @@
       `</div>`;
     d.appendChild(head);
 
-    const appendRows = items => {
-      for (const [label, val, exb] of items) {
-        const r = document.createElement('div'); r.className = 'row';
-        const valHTML = (w.tab === 'phr' && label === L[0]) ? phrBold(esc(val)) : exb ? exBold(val, q) : highlight(val, q);
-        r.innerHTML = `<div class="label">${esc(label)}</div><div class="val">${valHTML}</div>`;
-        d.appendChild(r);
-      }
+    const appendRow = (label, value, exb) => {
+      if (!value) return;
+      const r = document.createElement('div'); r.className = 'row';
+      const valHTML = exb ? exBold(value, q) : highlight(value, q);
+      r.innerHTML = `<div class="label">${esc(label)}</div><div class="val">${valHTML}</div>`;
+      d.appendChild(r);
     };
-    const introRows = [];
-    if (w.mean) introRows.push([w.tab === 'vocab' ? '\u6838\u5fc3\u91ca\u4e49' : L[1], w.mean, false]);
-    if (w.scene) introRows.push([L[3], w.scene, false]);
-    appendRows(introRows);
-    // Classification chips sit between the usage context and synonym/example sections.
-    const tags = document.createElement('div'); tags.className = 'row';
-    const primary = SCENE_TABS.includes(w.tab) ? subcategoryOf(w) : useOf(w);
-    const idxTags = SCENE_TABS.includes(w.tab) ? [] : (w.use || []).slice(1);
-    const categoryTags = w.tab === 'vocab' ? [wordClassOf(w), expressionFunctionOf(w)] : [];
+    if (w.mean) appendRow(w.tab === 'vocab' ? '\u6838\u5fc3\u91ca\u4e49' : L[1], w.mean, false);
+    if (w.scene) appendRow(L[3], w.scene, false);
+    const tags = document.createElement('div'); tags.className = 'detail-taxonomy';
+    const addPillRow = (label, values, clickable, kind) => {
+      if (!values.length) return;
+      const row = document.createElement('div'); row.className = 'row';
+      const val = document.createElement('div'); val.className = 'val';
+      for (const value of values) {
+        const pill = document.createElement(clickable ? 'button' : 'span');
+        pill.className = 'tag' + (clickable ? ' ' + kind : '');
+        pill.textContent = value;
+        if (clickable && kind === 'idx') pill.dataset.idx = value;
+        val.appendChild(pill);
+      }
+      const title = document.createElement('div'); title.className = 'label'; title.textContent = label;
+      row.append(title, val); tags.appendChild(row);
+    };
+    if (w.tab === 'vocab') {
+      addPillRow('\u573a\u666f\u5206\u7c7b', [sceneOf(w), ...subUses(w)], false, '');
+      addPillRow('\u8bcd\u6027', [wordClassOf(w)], false, '');
+      addPillRow('\u8868\u8fbe\u4f5c\u7528', [expressionFunctionOf(w)], false, '');
+    } else {
+      addPillRow('\u5206\u7c7b', [subcategoryOf(w)], false, '');
+    }
     const topicTags = w.topic || [];
-    let idxHTML = '';
-    if (idxTags.length) {
-      idxHTML = '<span class="idx-sep">\u573a\u666f\u7d22\u5f15</span>' + idxTags.map(u =>
-        `<button class="tag idx" data-idx="${esc(u)}">${esc(u)}</button>`).join('');
-    }
-    let tpHTML = '';
     if (topicTags.length) {
-      tpHTML = '<span class="idx-sep">\u9886\u57df\u6807\u7b7e</span>' + topicTags.map(t => {
-        const ic = (TOPICS.find(x => x.name === t) || {}).icon || '';
-        return `<button class="tag tp" data-dom="${esc(t)}">${ic ? ic + ' ' : ''}${esc(t)}</button>`;
-      }).join('');
+      const row = document.createElement('div'); row.className = 'row';
+      const title = document.createElement('div'); title.className = 'label'; title.textContent = '\u9886\u57df\u6807\u7b7e';
+      const val = document.createElement('div'); val.className = 'val';
+      for (const topic of topicTags) {
+        const ic = (TOPICS.find(x => x.name === topic) || {}).icon || '';
+        const pill = document.createElement('button'); pill.className = 'tag tp'; pill.dataset.dom = topic;
+        pill.textContent = (ic ? ic + ' ' : '') + topic; val.appendChild(pill);
+      }
+      row.append(title, val); tags.appendChild(row);
     }
-    tags.innerHTML = `<div class="label">\u573a\u666f\u4e0e\u8868\u8fbe\u7c7b\u522b</div><div class="val">` +
-      (primary ? `<span class="tag primary">${esc(primary)}</span>` : '') +
-      categoryTags.map(tag => `<span class="tag">${esc(tag)}</span>`).join('') +
-      idxHTML + tpHTML +
-      '</div>';
     d.appendChild(tags);
-    const practiceRows = [];
-    if (w.syn) practiceRows.push([L[0], w.syn, false]);
-    if (w.example) practiceRows.push([L[2], w.example, w.tab === 'phr']);
-    appendRows(practiceRows);
+    if (w.syn) appendRow(L[0], w.syn, false);
+    if (w.example) appendRow(L[2], w.example, w.tab === 'phr');
     tags.querySelectorAll('.tag.tp').forEach(b => b.addEventListener('click', ev => {
       ev.stopPropagation();
       const dm = b.dataset.dom;

@@ -854,3 +854,22 @@ body{background:var(--bg);color:var(--ink)}
 .word .detail .mine-box .label{font-size:16px;margin-bottom:10px}
 .word .detail .mine-box textarea{min-height:92px;padding:12px 14px;font-size:15px;line-height:1.7}
 @media(max-width:650px){.word.open{padding:12px}.word .detail{padding:16px}.word .detail .d-word{font-size:23px}.word .detail .row{padding:14px 0}.word .detail .val{font-size:15px}}
+
+/* Clear, spacious detail sections */
+.word .detail{padding:34px 40px;margin:18px 0 8px;border:1px solid #e5e7e9;border-radius:18px}
+.word .detail .d-head{padding-bottom:24px;margin-bottom:2px}
+.word .detail .d-word{font-size:34px}
+.word .detail .row{padding:26px 0}
+.word .detail .label{font-size:18px;margin-bottom:13px;color:#74777b}
+.word .detail .val{font-size:19px;line-height:1.95}
+.word .detail-taxonomy .row .val{display:flex;flex-wrap:wrap;gap:10px}
+.word .detail .val .tag{font-size:16px;padding:7px 15px;margin:0;border-radius:999px;background:#f0f1f2;color:#25282c}
+.word .detail .val .tag.tp{background:#edf4fa;color:#245d8f}
+.word .detail .mastery{margin:22px 0 4px}
+.word .detail .mastery button{font-size:15px;padding:9px 17px}
+.word .detail .act-row{margin-top:24px;gap:12px}
+.word .detail .act{font-size:16px;padding:11px 18px}
+.word .detail .mine-box{margin-top:28px;padding-top:24px}
+.word .detail .mine-box .label{font-size:18px}
+.word .detail .mine-box textarea{min-height:120px;font-size:17px;padding:15px 18px}
+@media(max-width:650px){.word .detail{padding:20px}.word .detail .d-word{font-size:27px}.word .detail .row{padding:18px 0}.word .detail .label{font-size:16px}.word .detail .val{font-size:16px}.word .detail .val .tag{font-size:14px;padding:6px 12px}}
