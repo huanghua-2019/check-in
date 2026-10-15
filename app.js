@@ -1337,15 +1337,18 @@
     const cf = document.getElementById('catFilter'); if (!cf) return;
     cf.innerHTML = '';
     if (currentTab === 'vocab' || currentTab === 'phr') {
-      const addFacet = (label, values, key, attr, getter) => {
-        const heading = document.createElement('span'); heading.className = 'facet-label'; heading.textContent = label; cf.appendChild(heading);
-        const all = document.createElement('button'); all.className = 'chip' + (filters[key] === 'all' ? ' active' : ''); all.dataset[attr] = 'all'; all.textContent = '全部'; cf.appendChild(all);
+      const sceneLine = document.createElement('div'); sceneLine.className = 'facet-line';
+      const functionLine = document.createElement('div'); functionLine.className = 'facet-line';
+      cf.append(sceneLine, functionLine);
+      const addFacet = (parent, label, values, key, attr, getter) => {
+        const heading = document.createElement('span'); heading.className = 'facet-label'; heading.textContent = label; parent.appendChild(heading);
+        const all = document.createElement('button'); all.className = 'chip' + (filters[key] === 'all' ? ' active' : ''); all.dataset[attr] = 'all'; all.textContent = '全部'; parent.appendChild(all);
         const buttons = [all];
         for (const value of values) {
           const count = tabVocab(currentTab).filter(w => { const v = getter(w); return Array.isArray(v) ? v.includes(value) : v === value; }).length;
           if (!count) continue;
           const b = document.createElement('button'); b.className = 'chip' + (filters[key] === value ? ' active' : ''); b.dataset[attr] = value;
-          b.textContent = value + ' ' + count; cf.appendChild(b); buttons.push(b);
+          b.textContent = value + ' ' + count; parent.appendChild(b); buttons.push(b);
         }
         buttons.forEach(b => b.addEventListener('click', () => {
           filters[key] = b.dataset[attr];
@@ -1353,9 +1356,9 @@
           render();
         }));
       };
-      addFacet('场景', SCENE_CATEGORIES, 'scene', 'scene', sceneOf);
-      addFacet('功能', FUNCTION_CATEGORIES, 'function', 'function', functionOf);
-      addFacet('自定义', customTags, 'customTag', 'customTag', tagsForWord);
+      addFacet(sceneLine, '场景', SCENE_CATEGORIES, 'scene', 'scene', sceneOf);
+      addFacet(functionLine, '功能', FUNCTION_CATEGORIES, 'function', 'function', functionOf);
+      addFacet(functionLine, '自定义', customTags, 'customTag', 'customTag', tagsForWord);
       return;
     }
     const all = document.createElement('button');

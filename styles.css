@@ -734,7 +734,9 @@ body{background:var(--bg);color:var(--ink)}
 .progress .bar{background:linear-gradient(90deg,#4386ed,#78adff)}
 .on-new-page .toolbar{display:none}
 .on-library .toolbar{background:transparent;padding:14px 22px 4px}
-.on-library #catFilter{align-items:center;gap:5px 7px}
+.on-library #catFilter{display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.facet-line{display:flex;align-items:center;gap:6px;min-width:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:thin;padding:2px 0}
+.facet-line .chip{flex:0 0 auto}
 .facet-label{flex:0 0 34px;color:var(--sub);font-size:10px;font-weight:700;margin-left:4px}
 .on-library #search{background:#fff;border-color:var(--line);border-radius:12px}
 .on-library #list{padding:10px 22px 32px}
