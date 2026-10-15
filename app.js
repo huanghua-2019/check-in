@@ -14,7 +14,27 @@
   const DOMAINS = ['🏆 竞争格局', '👥 人性心理', '🏗️ 管理组织', '💰 投资决策', '🌿 人生修养'];
   // 新分类视图以原条目的人工维护分类为输入，不改动数据本身或打卡 ID。
   const SCENE_CATEGORIES = ['日常生活', '工作与沟通', '人际关系', '人物与心理描写', '环境与细节描写', '思考与分析', '阅读与写作', '❓ 待整理'];
-  const FUNCTION_CATEGORIES = ['描述', '表达', '对话', '沟通', '分析', '组织语言', '❓ 待整理'];
+  const HUMOR_SCENE_CATEGORIES = ['职场与协作', '社交与人际', '投资与消费', '学习与成长', '公共议题与围观', '竞争与冲突', '❓ 待整理'];
+  const HUMOR_SCENE_BY_ID = {
+    1642:'职场与协作',1643:'学习与成长',1644:'投资与消费',1645:'公共议题与围观',1646:'社交与人际',
+    1647:'竞争与冲突',1648:'职场与协作',1649:'职场与协作',1650:'公共议题与围观',1651:'竞争与冲突',
+    1652:'职场与协作',1653:'社交与人际',1654:'公共议题与围观',1655:'职场与协作',1656:'职场与协作',
+    1657:'❓ 待整理',1658:'公共议题与围观',1659:'公共议题与围观',1660:'竞争与冲突',1661:'❓ 待整理',
+    1662:'公共议题与围观',1663:'社交与人际',1664:'职场与协作',1665:'竞争与冲突',1666:'公共议题与围观',
+    1667:'竞争与冲突',1668:'社交与人际',1669:'❓ 待整理',1729:'投资与消费',1730:'社交与人际'
+  };
+  const SCENE_TABS = ['vocab', 'phr', 'met', 'quote', 'humor'];
+  const WORD_CLASSES = ['名词 / 概念', '动词', '形容词', '副词 / 连词', '❓ 待标词性'];
+  const EXPRESSION_FUNCTIONS = ['观点与判断', '推理与解释', '对比与转折', '举例与证据', '概括与命名', '动作与变化', '状态与程度', '描写与刻画', '类比与形象化', '衔接与组织', '风险与边界', '❓ 待整理'];
+  const WORD_CLASS_BY_USE = {
+    '📐 概念指代':'名词 / 概念','🗣️ 灵活动词':'动词','🔤 精准形容词':'形容词','↔️ 副词连词':'副词 / 连词'
+  };
+  const FUNCTION_BY_USE = {
+    '🎯 立论判断':'观点与判断','🔗 论证推理':'推理与解释','⚖️ 对比转折':'对比与转折',
+    '📊 举证说明':'举例与证据','💡 打比方':'类比与形象化','🔍 洞察本质':'概括与命名',
+    '⚠️ 警示风险':'风险与边界','🖋️ 描写刻画':'描写与刻画','✍️ 写作技法':'衔接与组织',
+    '❓ 待定':'❓ 待整理'
+  };
   const SCENE_BY_OLD_CAT = {
     '01-观点与论述':'思考与分析','02-逻辑关系':'思考与分析','03-程度与属性':'人物与心理描写','04-行为与动作':'日常生活',
     '05-事物与指代':'环境与细节描写','06-概念与术语':'思考与分析','07A-素材与描写·人物与群体':'人物与心理描写',
@@ -29,40 +49,36 @@
     '🔄 对比揭示类':'思考与分析','🚀 文章开篇类':'阅读与写作','📋 列举论证类':'阅读与写作',
     '📊 因果分析类':'思考与分析','🎯 设问与反问类':'工作与沟通','📈 数据论证类':'思考与分析','✨ 排比与金句类':'阅读与写作'
   };
-  const FUNCTION_BY_OLD_USE = {
-    '🔤 精准形容词':'描述','🗣️ 灵活动词':'表达','↔️ 副词连词':'组织语言','📐 概念指代':'分析',
-    '🎯 立论判断':'表达','🔗 论证推理':'分析','⚖️ 对比转折':'组织语言','📊 举证说明':'分析',
-    '💡 打比方':'描述','🔍 洞察本质':'分析','⚠️ 警示风险':'表达','🖋️ 描写刻画':'描述',
-    '✍️ 写作技法':'组织语言','😂 幽默调侃':'对话'
-  };
   function sceneOf(entry) { return SCENE_BY_OLD_CAT[entry && entry.cat] || '❓ 待整理'; }
-  function functionOf(entry) { return FUNCTION_BY_OLD_USE[useOf(entry)] || '❓ 待整理'; }
   let state = {};
   let mine = {};
   let sbUrl = 'https://buzfmugezbemyfdmbgyt.supabase.co', sbKey = 'sb_publishable_HvD6YPPY-RpHLRicuoobSw_aSw1B_Ow', sbOn = true;
-  const filters = { status: 'all', mastery: 'all', tier: 'all', use: 'all', scene: 'all', function: 'all', customTag: 'all', q: '' };
+  const filters = { status: 'all', mastery: 'all', tier: 'all', use: 'all', scene: 'all', pos: 'all', role: 'all', function: 'all', customTag: 'all', q: '' };
   const desk = { q: '', use: 'all', topic: 'all', domain: 'all' };
   const deskOpen = new Set();   // 取用台内已展开详情的条目 id
   const openIds = new Set();
-  const collapsedGroups = new Set(SCENE_CATEGORIES);
+  const collapsedGroups = new Set();
   let selectedWordId = null;
   const isFiltering = () => filters.q.trim() || filters.status !== 'all' || filters.mastery !== 'all' || filters.tier !== 'all';
 
-  /* ---------- 七个形式（tab）+ 首页 + 取用台 ---------- */
+  /* ---------- 八个一级分类（tab）+ 首页 + 取用台 ---------- */
   const TABS = [
     { id: 'vocab', name: '词汇', icon: '📚', color: '#b8861b' },
     { id: 'phr',   name: '句式', icon: '✍️', color: '#2f8f9d' },
     { id: 'met',   name: '比喻', icon: '🎨', color: '#e07856' },
     { id: 'quote', name: '金句', icon: '💎', color: '#8a5cc4' },
-    { id: 'diff',  name: '辨析', icon: '🔀', color: '#c0553a' },
     { id: 'humor', name: '幽默', icon: '😂', color: '#d4568a' },
+    { id: 'diff',  name: '辨析', icon: '🔀', color: '#c0553a' },
     { id: 'cases', name: '案例', icon: '📒', color: '#3a6ea5' },
     { id: 'rule',  name: '规则', icon: '📐', color: '#6b8e23' },
   ];
+  for (const id of SCENE_TABS) for (const sub of subcategoriesForTab(id)) collapsedGroups.add(id + '|' + sub);
   function tabOf(entry) { return (entry && entry.tab) || 'vocab'; }
   function tabName(id) { const t = TABS.find(x => x.id === id); return t ? t.name : id; }
   function tabVocab(tabId) { return VOCAB.filter(w => tabOf(w) === tabId); }
   function useOf(entry) { return (entry && entry.use && entry.use[0]) || '（未分）'; }
+  function wordClassOf(entry) { return WORD_CLASS_BY_USE[useOf(entry)] || '❓ 待标词性'; }
+  function expressionFunctionOf(entry) { return FUNCTION_BY_USE[useOf(entry)] || '❓ 待整理'; }
   function subUses(entry) { return (entry && entry.use && entry.use.slice(1)) || []; }
   function tabUses(tabId) {
     const s = new Set();
@@ -70,9 +86,21 @@
     return USES.filter(u => s.has(u)).concat([...s].filter(u => USES.indexOf(u) < 0));
   }
   function tabGroups(tabId) {
-    return (tabId === 'vocab' || tabId === 'phr')
-      ? SCENE_CATEGORIES.filter(s => VOCAB.some(w => tabOf(w) === tabId && sceneOf(w) === s))
-      : tabUses(tabId);
+    return SCENE_TABS.includes(tabId)
+      ? subcategoriesForTab(tabId).map(sub => tabId + '|' + sub) : [];
+  }
+  function subcategoryOf(entry) {
+    const tab = tabOf(entry);
+    if (tab === 'vocab') return sceneOf(entry);
+    if (tab === 'humor') return HUMOR_SCENE_BY_ID[entry.id] || '❓ 待整理';
+    if (['phr', 'met', 'quote'].includes(tab)) return entry.cat || '❓ 待整理';
+    return useOf(entry);
+  }
+  function subcategoriesForTab(tabId) {
+    if (tabId === 'vocab') return SCENE_CATEGORIES.filter(s => tabVocab(tabId).some(w => subcategoryOf(w) === s));
+    if (tabId === 'humor') return HUMOR_SCENE_CATEGORIES.filter(s => tabVocab(tabId).some(w => subcategoryOf(w) === s));
+    if (['phr', 'met', 'quote'].includes(tabId)) return [...new Set(tabVocab(tabId).map(subcategoryOf))].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+    return tabUses(tabId);
   }
   const LS_TAB = 'vocab_current_tab_v1';
   let currentTab = (function () { try { return localStorage.getItem(LS_TAB) || 'home'; } catch (e) { return 'home'; } })();
@@ -386,10 +414,11 @@
       if (filters.status === 'sham' && !(rec.count >= 3 && rec.mastery !== '熟练')) return false;
       if (filters.mastery !== 'all' && rec.mastery !== filters.mastery) return false;
       if (filters.tier !== 'all' && w.tier !== filters.tier) return false;
+      if (currentTab === 'vocab' && filters.pos !== 'all' && wordClassOf(w) !== filters.pos) return false;
+      if (currentTab === 'vocab' && filters.role !== 'all' && expressionFunctionOf(w) !== filters.role) return false;
       if (filters.use !== 'all' && (w.use || []).indexOf(filters.use) < 0) return false;
-      if ((currentTab === 'vocab' || currentTab === 'phr') && filters.scene !== 'all' && sceneOf(w) !== filters.scene) return false;
-      if ((currentTab === 'vocab' || currentTab === 'phr') && filters.function !== 'all' && functionOf(w) !== filters.function) return false;
-      if ((currentTab === 'vocab' || currentTab === 'phr') && filters.customTag !== 'all' && !tagsForWord(w).includes(filters.customTag)) return false;
+      if (SCENE_TABS.includes(currentTab) && filters.scene !== 'all' && subcategoryOf(w) !== filters.scene) return false;
+      if (SCENE_TABS.includes(currentTab) && filters.customTag !== 'all' && !tagsForWord(w).includes(filters.customTag)) return false;
       if (q && matchScore(w, q) < 0) return false;
       return true;
     });
@@ -439,8 +468,9 @@
     }
     // 维度标签：use[0] 为主归属（实心），其余为场景索引（可点击筛选）
     const tags = document.createElement('div'); tags.className = 'row';
-    const primary = (w.use || [])[0];
-    const idxTags = (w.use || []).slice(1);
+    const primary = SCENE_TABS.includes(w.tab) ? subcategoryOf(w) : useOf(w);
+    const idxTags = SCENE_TABS.includes(w.tab) ? [] : (w.use || []).slice(1);
+    const categoryTags = w.tab === 'vocab' ? [wordClassOf(w), expressionFunctionOf(w)] : [];
     const topicTags = w.topic || [];
     let idxHTML = '';
     if (idxTags.length) {
@@ -454,8 +484,9 @@
         return `<button class="tag tp" data-dom="${esc(t)}">${ic ? ic + ' ' : ''}${esc(t)}</button>`;
       }).join('');
     }
-    tags.innerHTML = `<div class="label">标签</div><div class="val">` +
+    tags.innerHTML = `<div class="label">分类与标签</div><div class="val">` +
       (primary ? `<span class="tag primary">${esc(primary)}</span>` : '') +
+      categoryTags.map(tag => `<span class="tag">${esc(tag)}</span>`).join('') +
       idxHTML + tpHTML +
       '</div>';
     d.appendChild(tags);
@@ -464,7 +495,7 @@
       const dm = b.dataset.dom;
       currentTab = 'desk';
       try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
-      filters.use = 'all'; filters.status = 'all'; filters.tier = 'all'; filters.mastery = 'all';
+      resetLibraryFilters();
       desk.q = ''; desk.use = 'all'; desk.topic = 'all'; desk.domain = dm;
       syncChips(); closeSidebar(); render();
       toast('已跳取用台，按领域标签「' + dm + '」筛选');
@@ -474,7 +505,7 @@
       const u = b.dataset.idx;
       currentTab = 'desk';
       try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
-      filters.use = 'all'; filters.status = 'all'; filters.tier = 'all'; filters.mastery = 'all';
+      resetLibraryFilters();
       desk.q = ''; desk.use = u; desk.topic = 'all'; desk.domain = 'all';
       collapsedGroups.delete(u);
       syncChips(); closeSidebar(); render();
@@ -591,12 +622,17 @@
     updateStats(); renderTabs(); renderUseFilter(); updateToggleAll(); updateReviewBtn();
   }
   function currentVocab() { return TABS.some(t => t.id === currentTab) ? tabVocab(currentTab) : VOCAB; }
+  function resetLibraryFilters() {
+    filters.status = 'all'; filters.mastery = 'all'; filters.tier = 'all'; filters.use = 'all';
+    filters.scene = 'all'; filters.pos = 'all'; filters.role = 'all'; filters.customTag = 'all'; filters.q = '';
+    const search = document.getElementById('search'); if (search) search.value = '';
+  }
   function navigate(id) {
     currentTab = id;
     selectedWordId = null;
     try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
-    filters.use = 'all';
-    filters.scene = 'all'; filters.function = 'all'; filters.customTag = 'all';
+    resetLibraryFilters();
+    syncChips();
     closeSidebar();
     render();
   }
@@ -614,9 +650,9 @@
     pane.appendChild(heading);
     const result = document.createElement('div'); result.className = 'library-result';
     result.innerHTML = '<span>当前筛选 ' + words.length + ' 条</span>';
-    if (currentTab === 'vocab' || currentTab === 'phr') {
+      if (SCENE_TABS.includes(currentTab) && currentTab !== 'vocab') {
       const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'group-toggle';
-      const groups = [...new Set(words.map(sceneOf))];
+      const groups = [...new Set(words.map(subcategoryOf))].map(g => currentTab + '|' + g);
       const allClosed = groups.length > 0 && groups.every(g => collapsedGroups.has(g));
       toggle.textContent = allClosed ? '展开全部分类' : '收起全部分类';
       toggle.addEventListener('click', () => {
@@ -632,22 +668,23 @@
       row.className = 'library-item' + (w.id === selectedWordId ? ' selected' : '');
       row.innerHTML = '<span class="li-copy"><b>' + (w.tab === 'phr' ? phrBold(esc(w.word)) : highlight(w.word, filters.q)) + '</b>' +
         '<small>' + esc(w.syn || w.mean || '') + '</small><span class="li-tags"><i>' + esc(w.tier || '') + '</i>' +
-        '<i>' + esc(functionOf(w)) + '</i><i>' + esc(sceneOf(w)) + '</i></span></span><span class="li-count">' + (rec.count ? rec.count + '次' : '未用') + '</span>';
+        (currentTab === 'vocab' ? '<i>' + esc(wordClassOf(w)) + '</i><i>' + esc(expressionFunctionOf(w)) + '</i>' : '<i>' + esc(subcategoryOf(w)) + '</i>') + '</span></span><span class="li-count">' + (rec.count ? rec.count + '次' : '未用') + '</span>';
       row.addEventListener('click', () => { selectedWordId = w.id; renderLibraryPage(); });
       return row;
     };
-    if (currentTab === 'vocab' || currentTab === 'phr') {
-      const byScene = new Map();
-      for (const w of words) { const scene = sceneOf(w); if (!byScene.has(scene)) byScene.set(scene, []); byScene.get(scene).push(w); }
-      if (selectedWordId != null) { const selected = words.find(w => w.id === selectedWordId); if (selected) collapsedGroups.delete(sceneOf(selected)); }
-      const orderedScenes = SCENE_CATEGORIES.filter(s => byScene.has(s));
-      for (const scene of orderedScenes) {
-        const groupWords = byScene.get(scene), group = document.createElement('section');
-        const collapsed = collapsedGroups.has(scene) && !filters.q.trim(); group.className = 'library-group' + (collapsed ? ' collapsed' : '');
+    if (SCENE_TABS.includes(currentTab) && currentTab !== 'vocab') {
+      const bySubcategory = new Map();
+      for (const w of words) { const sub = subcategoryOf(w); if (!bySubcategory.has(sub)) bySubcategory.set(sub, []); bySubcategory.get(sub).push(w); }
+      const selected = words.find(w => w.id === selectedWordId);
+      if (selected) collapsedGroups.delete(currentTab + '|' + subcategoryOf(selected));
+      const ordered = subcategoriesForTab(currentTab).filter(s => bySubcategory.has(s));
+      for (const sub of ordered) {
+        const groupWords = bySubcategory.get(sub), group = document.createElement('section'), groupKey = currentTab + '|' + sub;
+        const collapsed = collapsedGroups.has(groupKey) && !filters.q.trim(); group.className = 'library-group' + (collapsed ? ' collapsed' : '');
         let done = 0; for (const w of groupWords) if (getRec(w.id).count > 0) done++;
         const head = document.createElement('button'); head.type = 'button'; head.className = 'library-group-head';
-        head.innerHTML = '<span class="lgh-name">' + esc(scene) + '</span><span class="lgh-count">' + done + ' / ' + groupWords.length + ' 已练</span><span class="lgh-caret">' + (collapsed ? '＋' : '−') + '</span>';
-        head.addEventListener('click', () => { collapsedGroups.has(scene) ? collapsedGroups.delete(scene) : collapsedGroups.add(scene); renderLibraryPage(); });
+        head.innerHTML = '<span class="lgh-name">' + esc(sub) + '</span><span class="lgh-count">' + done + ' / ' + groupWords.length + ' 已练</span><span class="lgh-caret">' + (collapsed ? '＋' : '−') + '</span>';
+        head.addEventListener('click', () => { collapsedGroups.has(groupKey) ? collapsedGroups.delete(groupKey) : collapsedGroups.add(groupKey); renderLibraryPage(); });
         const body = document.createElement('div'); body.className = 'library-group-body';
         for (const w of groupWords) body.appendChild(renderWord(w));
         group.append(head, body); rows.appendChild(group);
@@ -666,7 +703,7 @@
       const check = document.createElement('button'); check.type = 'button'; check.className = 'btn-primary'; check.textContent = isToday(rec.last_used) ? '今天已打卡 · 再记一次' : '记一次使用';
       check.addEventListener('click', () => checkIn(selected.id)); action.appendChild(check);
       detailPane.appendChild(action); detailPane.appendChild(buildDetail(selected, rec));
-      if (currentTab === 'vocab' || currentTab === 'phr') detailPane.appendChild(renderCustomTagEditor(selected));
+      if (SCENE_TABS.includes(currentTab)) detailPane.appendChild(renderCustomTagEditor(selected));
     } else { detailPane.innerHTML = '<div class="empty detail-empty">从左侧选一条词库内容</div>'; }
     layout.appendChild(detailPane); list.innerHTML = ''; list.appendChild(layout);
   }
@@ -723,42 +760,71 @@
   }
   function renderCategoryManager() {
     const wrap = document.createElement('div'); wrap.className = 'new-page';
-    wrap.appendChild(pageHeading('分类管理', '分类用于快速找到合适的表达。比喻、金句、幽默继续作为独立词库保留。'));
+    wrap.appendChild(pageHeading('分类管理', '八个一级分类；词汇、句式、比喻、金句和幽默各自设有二级分类。'));
     const forms = document.createElement('section'); forms.className = 'new-card';
-    forms.innerHTML = '<div class="new-card-head"><h3>内容形式</h3><span class="muted">按内容类型浏览</span></div>';
-    const grid = document.createElement('div'); grid.className = 'category-grid form-grid';
-    for (const t of TABS) {
+    forms.innerHTML = '<div class="new-card-head"><h3>一级分类</h3><span class="muted">选择分类进入词库</span></div>';
+    const renderFormCard = (t, parent) => {
       const count = tabVocab(t.id).length; const btn = document.createElement('button'); btn.type = 'button';
       const fixed = ['met', 'quote', 'humor'].includes(t.id);
       btn.className = 'category-card' + (fixed ? ' protected' : '');
       btn.innerHTML = '<span class="category-icon" style="--tc:' + t.color + '">' + t.icon + '</span><span><b>' + esc(t.name) + (fixed ? '<small>专属分类</small>' : '') + '</b><small>' + count + ' 条内容</small></span><span class="category-arrow">›</span>';
-      btn.addEventListener('click', () => navigate(t.id)); grid.appendChild(btn);
-    }
-    forms.appendChild(grid); wrap.appendChild(forms);
+      btn.addEventListener('click', () => navigate(t.id)); parent.appendChild(btn);
+    };
+    const renderFamily = (title, subtitle, ids) => {
+      const family = document.createElement('section'); family.className = 'form-family';
+      family.innerHTML = '<h4>' + esc(title) + '</h4><p>' + esc(subtitle) + '</p>';
+      const familyGrid = document.createElement('div'); familyGrid.className = 'category-grid form-grid';
+      for (const id of ids) renderFormCard(TABS.find(t => t.id === id), familyGrid);
+      family.appendChild(familyGrid); forms.appendChild(family);
+      const mainId = ids[0];
+      if (SCENE_TABS.includes(mainId)) {
+        const subTitle = document.createElement('div'); subTitle.className = 'muted'; subTitle.textContent = '二级分类';
+        family.appendChild(subTitle);
+        const subs = document.createElement('div'); subs.className = 'category-grid';
+        for (const sub of subcategoriesForTab(mainId)) {
+          const count = tabVocab(mainId).filter(w => subcategoryOf(w) === sub).length;
+          const b = document.createElement('button'); b.type = 'button'; b.className = 'use-card';
+          b.innerHTML = '<span>' + esc(sub) + '</span><b>' + count + '</b>';
+          b.addEventListener('click', () => { navigate(mainId); filters.scene = sub; render(); });
+          subs.appendChild(b);
+        }
+        family.appendChild(subs);
+      }
+    };
+    renderFamily('词汇', '词汇按场景细分', ['vocab']);
+    renderFamily('句式', '按原有句式类型细分', ['phr']);
+    renderFamily('比喻', '独立一级分类，按原有主题细分', ['met']);
+    renderFamily('金句', '独立一级分类，按原有主题细分', ['quote']);
+    renderFamily('幽默', '独立一级分类，按使用场景细分', ['humor']);
+    renderFamily('辨析', '近义词辨析', ['diff']);
+    renderFamily('案例', '案例素材', ['cases']);
+    renderFamily('规则', '写作规则', ['rule']);
+    wrap.appendChild(forms);
     const uses = document.createElement('section'); uses.className = 'new-card';
-    uses.innerHTML = '<div class="new-card-head"><h3>词汇与句式分类</h3><span class="muted">场景 + 表达功能 + 领域标签</span></div>';
-    const useGrid = document.createElement('div'); useGrid.className = 'category-grid';
-    for (const scene of SCENE_CATEGORIES) {
-      const n = VOCAB.filter(w => ['vocab','phr'].includes(tabOf(w)) && sceneOf(w) === scene).length;
-      if (!n) continue;
-      const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'use-card';
-      btn.innerHTML = '<span>场景 · ' + esc(scene) + '</span><b>' + n + '</b>';
-      btn.addEventListener('click', () => { navigate('vocab'); filters.scene = scene; render(); }); useGrid.appendChild(btn);
-    }
-    for (const fn of FUNCTION_CATEGORIES) {
-      const n = VOCAB.filter(w => ['vocab','phr'].includes(tabOf(w)) && functionOf(w) === fn).length;
-      if (!n) continue;
-      const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'use-card';
-      btn.innerHTML = '<span>功能 · ' + esc(fn) + '</span><b>' + n + '</b>';
-      btn.addEventListener('click', () => { navigate('vocab'); filters.function = fn; render(); }); useGrid.appendChild(btn);
-    }
-    uses.appendChild(useGrid); wrap.appendChild(uses);
-    const tagValues = new Set(); for (const w of VOCAB) if (['vocab','phr'].includes(tabOf(w))) for (const tag of (w.topic || [])) tagValues.add(tag);
+    uses.innerHTML = '<div class="new-card-head"><h3>\u8bcd\u6c47\u5206\u7c7b\u7ef4\u5ea6</h3><span class="muted">\u8bcd\u6027\u3001\u8868\u8fbe\u4f5c\u7528\u4e0e\u573a\u666f\u5206\u522b\u7b5b\u9009\uff1b\u672a\u660e\u786e\u7684\u6761\u76ee\u5148\u5f85\u6574\u7406</span></div>';
+    const addDimensionCards = (title, values, getter, filterKey) => {
+      const group = document.createElement('div'); group.className = 'form-family';
+      group.innerHTML = '<h4>' + esc(title) + '</h4>';
+      const grid = document.createElement('div'); grid.className = 'category-grid';
+      for (const value of values) {
+        const n = VOCAB.filter(w => tabOf(w) === 'vocab' && getter(w) === value).length;
+        if (!n) continue;
+        const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'use-card';
+        btn.innerHTML = '<span>' + esc(value) + '</span><b>' + n + '</b>';
+        btn.addEventListener('click', () => { navigate('vocab'); filters[filterKey] = value; render(); });
+        grid.appendChild(btn);
+      }
+      group.appendChild(grid); uses.appendChild(group);
+    };
+    addDimensionCards('\u8bcd\u6027', WORD_CLASSES, wordClassOf, 'pos');
+    addDimensionCards('\u8868\u8fbe\u4f5c\u7528', EXPRESSION_FUNCTIONS, expressionFunctionOf, 'role');
+    wrap.appendChild(uses);
+    const tagValues = new Set(); for (const w of VOCAB) if (SCENE_TABS.includes(tabOf(w))) for (const tag of (w.topic || [])) tagValues.add(tag);
     const tagCard = document.createElement('section'); tagCard.className = 'new-card';
     tagCard.innerHTML = '<div class="new-card-head"><h3>领域与主题标签</h3><span class="muted">作为辅助筛选</span></div>';
     const tagGrid = document.createElement('div'); tagGrid.className = 'category-grid';
     for (const tag of [...tagValues].sort((a,b) => a.localeCompare(b, 'zh-CN'))) {
-      const n = VOCAB.filter(w => ['vocab','phr'].includes(tabOf(w)) && (w.topic || []).includes(tag)).length;
+      const n = VOCAB.filter(w => SCENE_TABS.includes(tabOf(w)) && (w.topic || []).includes(tag)).length;
       const item = document.createElement('div'); item.className = 'use-card'; item.innerHTML = '<span>' + esc(tag) + '</span><b>' + n + '</b>'; tagGrid.appendChild(item);
     }
     tagCard.appendChild(tagGrid); wrap.appendChild(tagCard);
@@ -776,13 +842,17 @@
     const customGrid = document.createElement('div'); customGrid.className = 'category-grid custom-tag-categories';
     if (!customTags.length) { const emptyTags = document.createElement('p'); emptyTags.className = 'muted'; emptyTags.textContent = '暂无自定义标签'; customGrid.appendChild(emptyTags); }
     for (const tag of customTags) {
-      const n = VOCAB.filter(w => ['vocab','phr'].includes(tabOf(w)) && tagsForWord(w).includes(tag)).length;
+      const n = VOCAB.filter(w => SCENE_TABS.includes(tabOf(w)) && tagsForWord(w).includes(tag)).length;
       const item = document.createElement('button'); item.type = 'button'; item.className = 'use-card';
       item.innerHTML = '<span>' + esc(tag) + '</span><b>' + n + '</b>';
-      item.addEventListener('click', () => { navigate('vocab'); filters.customTag = tag; render(); }); customGrid.appendChild(item);
+      item.addEventListener('click', () => {
+        const target = VOCAB.find(w => SCENE_TABS.includes(tabOf(w)) && tagsForWord(w).includes(tag));
+        if (!target) return;
+        navigate(tabOf(target)); filters.customTag = tag; render();
+      }); customGrid.appendChild(item);
     }
     customCard.appendChild(customGrid); wrap.appendChild(customCard);
-    const note = document.createElement('p'); note.className = 'taxonomy-note'; note.textContent = '比喻、金句、幽默继续作为独立内容形式；词汇和句式按场景、功能浏览，领域和主题作为辅助标签。'; wrap.appendChild(note);
+    const note = document.createElement('p'); note.className = 'taxonomy-note'; note.textContent = '八个一级分类各自独立；词汇保留原有类别，句式、比喻、金句按原有子类浏览，幽默按使用场景细分。领域主题和自定义标签仅作辅助筛选。'; wrap.appendChild(note);
     list.innerHTML = ''; list.appendChild(wrap);
   }
   function renderReviewPage() {
@@ -1004,7 +1074,7 @@
       row.addEventListener('click', () => {
         // 用途维度天然跨多个形式 tab，盲区点开应到「取用台」按 use 跨形式聚合，
         // 否则切到 vocab 单页会把 quote/met/diff 里的条目全过滤掉（如「人生修养」vocab 里 0 条）
-        currentTab = 'desk'; filters.use = 'all'; filters.status = 'all'; filters.tier = 'all'; filters.mastery = 'all';
+        currentTab = 'desk'; resetLibraryFilters();
         desk.q = ''; desk.use = r.use; desk.topic = 'all'; desk.domain = 'all';
         try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
         collapsedGroups.delete(r.use);
@@ -1022,7 +1092,7 @@
       b.innerHTML = '<div class="bl-top"><span class="bl-name">⚠️ 看了 3 次以上却还没标「熟练」</span><span class="bl-num">' + sham + ' 条</span></div>' +
         '<div class="bl-sub">反复翻看≠记住。点开逐条自测，能默写出例句再标熟练。</div>';
       b.addEventListener('click', () => {
-        currentTab = 'vocab'; filters.status = 'sham'; filters.use = 'all'; filters.tier = 'all'; filters.mastery = 'all';
+        currentTab = 'vocab'; resetLibraryFilters(); filters.status = 'sham';
         try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {}
         syncChips(); closeSidebar(); render();
       });
@@ -1061,7 +1131,7 @@
 
   function buildTabsBreakdown(doneSet) {
     const sec = document.createElement('section'); sec.className = 'dash-section';
-    sec.innerHTML = '<h2 class="dash-h">各形式完成度</h2>';
+    sec.innerHTML = '<h2 class="dash-h">八个一级分类完成度</h2>';
     const grid = document.createElement('div'); grid.className = 'dash-grid';
     for (const t of TABS) {
       const v = tabVocab(t.id);
@@ -1073,7 +1143,7 @@
         '<div class="dc-top"><span class="dc-ico">' + t.icon + '</span><span class="dc-name">' + t.name + '</span><span class="dc-num">' + d + '/' + v.length + '</span></div>' +
         '<div class="dc-bar"><div class="dc-fill" style="width:' + pct + '%"></div></div>' +
         '<div class="dc-sub">' + s + ' 次打卡</div>';
-      card.addEventListener('click', () => { currentTab = t.id; try { localStorage.setItem(LS_TAB, currentTab); } catch (e) {} filters.use = 'all'; closeSidebar(); render(); });
+      card.addEventListener('click', () => navigate(t.id));
       grid.appendChild(card);
     }
     sec.appendChild(grid);
@@ -1305,27 +1375,28 @@
       b.addEventListener('click', () => navigate(id)); el.appendChild(b);
     };
     addPage('home', '🏠', '首页'); addPage('today', '✅', '今日打卡'); addPage('review', '🧠', '复习训练'); addPage('stats', '📊', '学习统计');
-    addLabel('我的词库');
-    for (const t of TABS) {
+    const addVocabTab = (t, child) => {
       const v = tabVocab(t.id);
       let d = 0, sum = 0;
       for (const w of v) { if (state[w.id] && state[w.id].count > 0) d++; sum += state[w.id] ? (state[w.id].count || 0) : 0; }
       const b = document.createElement('button');
-      b.className = 'tab' + (t.id === currentTab ? ' active' : '');
+      b.className = 'tab' + (child ? ' tab-child' : '') + (t.id === currentTab ? ' active' : '');
       b.style.setProperty('--tc', t.color);
       const protectedTab = ['met', 'quote', 'humor'].includes(t.id);
       b.innerHTML = `<span class="t-ico">${t.icon}</span><span class="t-name">${t.name}</span><span class="t-count">${d}<small>/${v.length}</small></span>` + (protectedTab ? '<span class="nav-lock" title="独立保留的专属分类">◆</span>' : '') + `<small class="t-sum">${sum}次</small>`;
       b.addEventListener('click', () => navigate(t.id));
       el.appendChild(b);
-    }
+    };
+    addLabel('词汇'); addVocabTab(TABS.find(t => t.id === 'vocab'), false);
+    addLabel('句式'); addVocabTab(TABS.find(t => t.id === 'phr'), false);
+    addLabel('比喻'); addVocabTab(TABS.find(t => t.id === 'met'), false);
+    addLabel('金句'); addVocabTab(TABS.find(t => t.id === 'quote'), false);
+    addLabel('幽默'); addVocabTab(TABS.find(t => t.id === 'humor'), false);
+    addLabel('辨析'); addVocabTab(TABS.find(t => t.id === 'diff'), false);
+    addLabel('案例'); addVocabTab(TABS.find(t => t.id === 'cases'), false);
+    addLabel('规则'); addVocabTab(TABS.find(t => t.id === 'rule'), false);
     addLabel('工具');
     addPage('categories', '🗂️', '分类管理'); addPage('desk', '🎯', '表达取用台');
-    const modules = [{ id: 'sleep', icon: '🌙', name: '早睡打卡' }, { id: 'method', icon: '💡', name: '底层框架' }];
-    for (const mod of modules) {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'tab module-link';
-      b.innerHTML = '<span class="t-ico">' + mod.icon + '</span><span class="t-name">' + mod.name + '</span>';
-      b.addEventListener('click', () => switchModule(mod.id)); el.appendChild(b);
-    }
   }
   function switchModule(id) {
     document.querySelectorAll('.module').forEach(m => { m.hidden = m.id !== 'mod-' + id; });
@@ -1336,50 +1407,64 @@
   function renderUseFilter() {
     const cf = document.getElementById('catFilter'); if (!cf) return;
     cf.innerHTML = '';
-    if (currentTab === 'vocab' || currentTab === 'phr') {
-      const sceneLine = document.createElement('div'); sceneLine.className = 'facet-line';
-      const functionLine = document.createElement('div'); functionLine.className = 'facet-line';
-      cf.append(sceneLine, functionLine);
-      const addFacet = (parent, label, values, key, attr, getter) => {
-        const heading = document.createElement('span'); heading.className = 'facet-label'; heading.textContent = label; parent.appendChild(heading);
-        const all = document.createElement('button'); all.className = 'chip' + (filters[key] === 'all' ? ' active' : ''); all.dataset[attr] = 'all'; all.textContent = '全部'; parent.appendChild(all);
-        const buttons = [all];
+    if (SCENE_TABS.includes(currentTab)) {
+      const addInfoLine = (label, values, getter) => {
+        const line = document.createElement('div'); line.className = 'facet-line taxonomy-line';
+        const heading = document.createElement('span'); heading.className = 'facet-label'; heading.textContent = label; line.appendChild(heading);
         for (const value of values) {
-          const count = tabVocab(currentTab).filter(w => { const v = getter(w); return Array.isArray(v) ? v.includes(value) : v === value; }).length;
+          const count = tabVocab(currentTab).filter(w => getter(w) === value).length;
           if (!count) continue;
-          const b = document.createElement('button'); b.className = 'chip' + (filters[key] === value ? ' active' : ''); b.dataset[attr] = value;
-          b.textContent = value + ' ' + count; parent.appendChild(b); buttons.push(b);
+          const item = document.createElement('span'); item.className = 'taxonomy-item';
+          item.textContent = value + ' ' + count; line.appendChild(item);
         }
-        buttons.forEach(b => b.addEventListener('click', () => {
-          filters[key] = b.dataset[attr];
-          if (key === 'scene' && filters.scene !== 'all') collapsedGroups.delete(filters.scene);
-          render();
-        }));
+        cf.appendChild(line);
       };
-      addFacet(sceneLine, '场景', SCENE_CATEGORIES, 'scene', 'scene', sceneOf);
-      addFacet(functionLine, '功能', FUNCTION_CATEGORIES, 'function', 'function', functionOf);
-      addFacet(functionLine, '自定义', customTags, 'customTag', 'customTag', tagsForWord);
+      if (currentTab === 'vocab') {
+        const addCategoryLine = (label, values, key, getter) => {
+          const line = document.createElement('div'); line.className = 'facet-line';
+          const heading = document.createElement('span'); heading.className = 'facet-label'; heading.textContent = label; line.appendChild(heading);
+          const addButton = (value, count) => {
+            const button = document.createElement('button'); button.className = 'chip' + (filters[key] === value ? ' active' : '');
+            button.textContent = value === 'all' ? '\u5168\u90e8' : value + ' ' + count;
+            button.addEventListener('click', () => { filters[key] = value; render(); }); line.appendChild(button);
+          };
+          addButton('all', 0);
+          for (const value of values) {
+            const count = tabVocab('vocab').filter(w => getter(w) === value).length;
+            if (count) addButton(value, count);
+          }
+          cf.appendChild(line);
+        };
+        addCategoryLine('\u8bcd\u6027', WORD_CLASSES, 'pos', wordClassOf);
+        addCategoryLine('\u8868\u8fbe\u4f5c\u7528', EXPRESSION_FUNCTIONS, 'role', expressionFunctionOf);
+      }
+      const sceneLine = document.createElement('div'); sceneLine.className = 'facet-line';
+      cf.appendChild(sceneLine);
+      const heading = document.createElement('span'); heading.className = 'facet-label';
+      heading.textContent = ['vocab', 'humor'].includes(currentTab) ? '\u573a\u666f' : '\u4e8c\u7ea7\u5206\u7c7b';
+      sceneLine.appendChild(heading);
+      const addScene = (value, count) => {
+        const b = document.createElement('button'); b.className = 'chip' + (filters.scene === value ? ' active' : '');
+        b.dataset.scene = value; b.textContent = value + (value === 'all' ? '' : ' ' + count);
+        b.addEventListener('click', () => { filters.scene = value; if (value !== 'all') collapsedGroups.delete(currentTab + '|' + value); render(); });
+        sceneLine.appendChild(b);
+      };
+      addScene('all', 0);
+      for (const value of subcategoriesForTab(currentTab)) addScene(value, tabVocab(currentTab).filter(w => subcategoryOf(w) === value).length);
       return;
     }
     const all = document.createElement('button');
-    all.className = 'chip' + (filters.use === 'all' ? ' active' : ''); all.dataset.use = 'all'; all.textContent = '全部用途';
+    all.className = 'chip' + (filters.use === 'all' ? ' active' : ''); all.dataset.use = 'all'; all.textContent = '\u5168\u90e8\u7528\u9014';
     cf.appendChild(all);
     for (const u of tabUses(currentTab)) {
-      const b = document.createElement('button');
-      b.className = 'chip' + (filters.use === u ? ' active' : ''); b.dataset.use = u;
-      b.textContent = u + ' ' + (function () { let t = 0; for (const w of VOCAB) if (tabOf(w) === currentTab && useOf(w) === u) t++; return t; })();
-      cf.appendChild(b);
+      const b = document.createElement('button'); b.className = 'chip' + (filters.use === u ? ' active' : ''); b.dataset.use = u;
+      b.textContent = u + ' ' + tabVocab(currentTab).filter(w => useOf(w) === u).length; cf.appendChild(b);
     }
-    cf.querySelectorAll('.chip').forEach(b => {
-      b.addEventListener('click', () => {
-        cf.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        filters.use = b.dataset.use;
-        // 单类筛选时自动展开该类
-        if (filters.use !== 'all') collapsedGroups.delete(filters.use);
-        render();
-      });
-    });
+    cf.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+      filters.use = b.dataset.use;
+      if (filters.use !== 'all') collapsedGroups.delete(filters.use);
+      render();
+    }));
   }
 
   /* ---------- 筛选 UI ---------- */
@@ -1401,14 +1486,14 @@
       c.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x.dataset[attr] === filters[key]));
     }
     const cf = document.getElementById('catFilter');
-    if (cf) cf.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x.dataset.use === filters.use));
+    if (cf) cf.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x.dataset.use === filters.use || x.dataset.pos === filters.pos || x.dataset.role === filters.role || x.dataset.scene === filters.scene || x.dataset.customTag === filters.customTag));
   }
   wireChips(document.getElementById('statusFilter'), 'f', 'status');
   wireChips(document.getElementById('masteryFilter'), 'm', 'mastery');
   wireChips(document.getElementById('tierFilter'), 't', 'tier');
   document.getElementById('search').addEventListener('input', e => {
     filters.q = e.target.value;
-    if (filters.q.trim() && (currentTab === 'vocab' || currentTab === 'phr')) collapsedGroups.clear();
+    if (filters.q.trim() && SCENE_TABS.includes(currentTab)) collapsedGroups.clear();
     render();
   });
 
@@ -1425,6 +1510,8 @@
   function updateToggleAll() {
     if (!toggleAllBtn) return;
     const gs = tabGroups(currentTab);
+    toggleAllBtn.hidden = !gs.length;
+    if (!gs.length) return;
     const allCollapsed = gs.length > 0 && gs.every(c => collapsedGroups.has(c));
     toggleAllBtn.textContent = allCollapsed ? '展开全部 ▾' : '收起全部 ▴';
   }
